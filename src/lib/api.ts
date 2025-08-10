@@ -1,0 +1,344 @@
+import ky from 'ky';
+import type {
+  RankInformation,
+  PromotionInformation,
+  PractitionerProfileInformation,
+  OrganizationProfileInformation,
+  ProfileData,
+  Interaction,
+  AddWitAndSubmitParams,
+  GYTxId,
+  BeltFrequency,
+  BJJBelt
+} from '../types/api';
+
+import { API_CONFIG } from '../config/api';
+
+const api = ky.create({
+  prefixUrl: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
+  retry: API_CONFIG.RETRY_ATTEMPTS,
+  headers: {
+    'Authorization': `Basic ${btoa(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`)}`
+  }
+});
+
+export class BeltSystemAPI {
+  // Get all belts with optional filtering
+  static async getBelts(params?: {
+    limit?: number;
+    offset?: number;
+    profile?: string[];
+    belt?: BJJBelt[];
+    achieved_by?: string[];
+    awarded_by?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<RankInformation[]> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
+    if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
+    if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
+    if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+
+    return api.get(`belts?${searchParams.toString()}`).json();
+  }
+
+  // Get belts count
+  static async getBeltsCount(params?: {
+    limit?: number;
+    offset?: number;
+    profile?: string[];
+    belt?: BJJBelt[];
+    achieved_by?: string[];
+    awarded_by?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<number> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
+    if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
+    if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
+    if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+
+    return api.get(`belts/count?${searchParams.toString()}`).json();
+  }
+
+  // Get belt frequency distribution
+  static async getBeltsFrequency(): Promise<BeltFrequency[]> {
+    const response = await api.get('belts/frequency').json() as [BJJBelt, number][];
+    return response.map(([belt, count]) => ({ belt, count }));
+  }
+
+  // Get practitioner profile
+  static async getPractitionerProfile(profileId: string): Promise<PractitionerProfileInformation> {
+    return api.get(`practitioner/${profileId}`).json();
+  }
+
+  // Get organization profile
+  static async getOrganizationProfile(organizationId: string): Promise<OrganizationProfileInformation> {
+    return api.get(`organization/${organizationId}`).json();
+  }
+
+  // Get pending promotions
+  static async getPromotions(params?: {
+    limit?: number;
+    offset?: number;
+    profile?: string[];
+    belt?: BJJBelt[];
+    achieved_by?: string[];
+    awarded_by?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<PromotionInformation[]> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
+    if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
+    if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
+    if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+
+    return api.get(`promotions?${searchParams.toString()}`).json();
+  }
+
+  // Get promotions count
+  static async getPromotionsCount(params?: {
+    limit?: number;
+    offset?: number;
+    profile?: string[];
+    belt?: BJJBelt[];
+    achieved_by?: string[];
+    awarded_by?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<number> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
+    if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
+    if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
+    if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+
+    return api.get(`promotions/count?${searchParams.toString()}`).json();
+  }
+
+  // Build transaction
+  static async buildTransaction(interaction: Interaction): Promise<string> {
+    return api.post('build-tx', { json: interaction }).text();
+  }
+
+  // Submit signed transaction
+  static async submitTransaction(params: AddWitAndSubmitParams): Promise<GYTxId> {
+    return api.post('submit-tx', { json: params }).json();
+  }
+
+  // Analytics methods
+  static async getActiveProfilesCount(): Promise<number> {
+    // For now, return the total profiles count
+    // In the future, this could be enhanced to filter by active status
+    return this.getProfilesCount();
+  }
+
+  static async getRecentPromotions(days: number = 30): Promise<PromotionInformation[]> {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    
+    return this.getPromotions({
+      from: fromDate.toISOString().split('T')[0],
+      to: new Date().toISOString().split('T')[0],
+      limit: 100 // Get more recent promotions for analytics
+    });
+  }
+
+  static async getTopPerformingAcademies(limit: number = 5): Promise<Array<{ academyId: string; academyName: string; beltCount: number }>> {
+    // Get all belts and group by awarded_by to find top academies
+    const allBelts = await this.getBelts({ limit: 1000 }); // Get a large number to analyze
+    
+    // Group by academy and count belts
+    const academyStats = new Map<string, { name: string; count: number }>();
+    
+    allBelts.forEach(belt => {
+      const academyId = belt.awarded_by_profile_id;
+      if (academyId) {
+        const current = academyStats.get(academyId) || { name: 'Unknown Academy', count: 0 };
+        academyStats.set(academyId, { ...current, count: current.count + 1 });
+      }
+    });
+    
+    // Sort by count and return top performers
+    return Array.from(academyStats.entries())
+      .map(([id, stats]) => ({ academyId: id, academyName: stats.name, beltCount: stats.count }))
+      .sort((a, b) => b.beltCount - a.beltCount)
+      .slice(0, limit);
+  }
+
+  static async getMonthlyGrowthRate(): Promise<number> {
+    // Calculate growth rate based on promotions in current month vs previous month
+    const currentMonth = new Date();
+    const previousMonth = new Date();
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    
+    const currentMonthPromotions = await this.getPromotions({
+      from: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0],
+      to: new Date().toISOString().split('T')[0]
+    });
+    
+    const previousMonthPromotions = await this.getPromotions({
+      from: new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 1).toISOString().split('T')[0],
+      to: new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0).toISOString().split('T')[0]
+    });
+    
+    if (previousMonthPromotions.length === 0) {
+      return currentMonthPromotions.length > 0 ? 100 : 0; // 100% growth if going from 0 to some
+    }
+    
+    const growthRate = ((currentMonthPromotions.length - previousMonthPromotions.length) / previousMonthPromotions.length) * 100;
+    return Math.round(growthRate * 10) / 10; // Round to 1 decimal place
+  }
+
+  // Profile-related endpoints
+  // Note: This is a mock implementation until the server endpoint is available
+  static async getProfiles(params?: {
+    limit?: number;
+    offset?: number;
+    profile_type?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<ProfileData[]> {
+    // Mock data for now - replace with actual API call when endpoint is available
+    // Note: We're returning PractitionerProfileInformation and OrganizationProfileInformation
+    // which extend ProfileData, to match what the UI components expect
+    const mockProfiles: (PractitionerProfileInformation | OrganizationProfileInformation)[] = [
+      {
+        id: 'mock-practitioner-1',
+        name: 'John Doe',
+        description: 'BJJ practitioner with 5 years experience',
+        image_uri: 'https://via.placeholder.com/150',
+        current_rank: {
+          id: 'rank-1',
+          belt: 'Blue',
+          achieved_by_profile_id: 'mock-practitioner-1',
+          awarded_by_profile_id: 'mock-org-1',
+          achievement_date: '2024-01-15'
+        },
+        previous_ranks: [
+          {
+            id: 'rank-2',
+            belt: 'White',
+            achieved_by_profile_id: 'mock-practitioner-1',
+            awarded_by_profile_id: 'mock-org-1',
+            achievement_date: '2023-06-01'
+          }
+        ]
+      },
+      {
+        id: 'mock-practitioner-2',
+        name: 'Jane Smith',
+        description: 'Competition-focused BJJ athlete',
+        image_uri: 'https://via.placeholder.com/150',
+        current_rank: {
+          id: 'rank-3',
+          belt: 'Purple',
+          achieved_by_profile_id: 'mock-practitioner-2',
+          awarded_by_profile_id: 'mock-org-1',
+          achievement_date: '2024-03-20'
+        },
+        previous_ranks: [
+          {
+            id: 'rank-4',
+            belt: 'Blue',
+            achieved_by_profile_id: 'mock-practitioner-2',
+            awarded_by_profile_id: 'mock-org-1',
+            achievement_date: '2023-12-10'
+          },
+          {
+            id: 'rank-5',
+            belt: 'White',
+            achieved_by_profile_id: 'mock-practitioner-2',
+            awarded_by_profile_id: 'mock-org-1',
+            achievement_date: '2023-01-15'
+          }
+        ]
+      },
+      {
+        id: 'mock-organization-1',
+        name: 'Elite BJJ Academy',
+        description: 'Premier BJJ training facility',
+        image_uri: 'https://via.placeholder.com/150'
+      }
+    ];
+
+    // Apply filtering logic if profile_type is specified
+    let filteredProfiles = mockProfiles;
+    
+    if (params?.profile_type && params.profile_type.length > 0) {
+      filteredProfiles = mockProfiles.filter(profile => {
+        if ('current_rank' in profile) {
+          // This is a PractitionerProfileInformation
+          return params.profile_type!.includes('Practitioner');
+        } else {
+          // This is an OrganizationProfileInformation
+          return params.profile_type!.includes('Organization');
+        }
+      });
+    }
+
+    // Apply pagination
+    const offset = params?.offset || 0;
+    const limit = params?.limit || 10;
+    const paginatedProfiles = filteredProfiles.slice(offset, offset + limit);
+
+    return paginatedProfiles;
+  }
+
+  // Note: This is a mock implementation until the server endpoint is available
+  static async getProfilesCount(params?: {
+    limit?: number;
+    offset?: number;
+    profile_type?: string[];
+    from?: string;
+    to?: string;
+  }): Promise<number> {
+    // Mock count for now - replace with actual API call when endpoint is available
+    // This matches the expected API response format (just a number)
+    return 3; // Mock count of 3 profiles
+  }
+
+  // Note: This is a mock implementation until the server endpoint is available
+  static async getProfile(id: string): Promise<PractitionerProfileInformation> {
+    // Mock data for now - replace with actual API call when endpoint is available
+    // Return a practitioner profile as an example
+    return {
+      id: id,
+      name: 'Mock Practitioner Profile',
+      description: 'This is a mock practitioner profile until the real endpoint is implemented',
+      image_uri: 'https://via.placeholder.com/150',
+      current_rank: {
+        id: 'mock-rank-1',
+        belt: 'Blue',
+        achieved_by_profile_id: id,
+        awarded_by_profile_id: 'mock-org-1',
+        achievement_date: '2024-01-01'
+      },
+      previous_ranks: []
+    };
+  }
+}
