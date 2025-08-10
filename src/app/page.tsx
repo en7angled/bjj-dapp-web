@@ -248,7 +248,7 @@ export default function Home() {
 
         {/* API Connection Test */}
         <div className="mt-8 px-4 sm:px-0">
-          <APITest />
+          {/* API test removed */}
         </div>
       </main>
     </div>

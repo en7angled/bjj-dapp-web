@@ -25,6 +25,31 @@ const api = ky.create({
 });
 
 export class BeltSystemAPI {
+  // Simple in-memory cache for id -> profile name
+  private static profileNameCache: Map<string, string> = new Map();
+
+  static async resolveProfileName(profileId: string): Promise<string> {
+    if (!profileId) return '';
+    const cached = this.profileNameCache.get(profileId);
+    if (cached) return cached;
+    try {
+      const pr = await this.getPractitionerProfile(profileId);
+      if (pr?.name) {
+        this.profileNameCache.set(profileId, pr.name);
+        return pr.name;
+      }
+    } catch {}
+    try {
+      const org = await this.getOrganizationProfile(profileId);
+      if (org?.name) {
+        this.profileNameCache.set(profileId, org.name);
+        return org.name;
+      }
+    } catch {}
+    // fallback to id if nothing resolved
+    this.profileNameCache.set(profileId, profileId);
+    return profileId;
+  }
   // Get all belts with optional filtering
   static async getBelts(params?: {
     limit?: number;
@@ -258,101 +283,22 @@ export class BeltSystemAPI {
   }
 
   // Profile-related endpoints
-  // Note: This is a mock implementation until the server endpoint is available
   static async getProfiles(params?: {
     limit?: number;
     offset?: number;
     profile_type?: string[];
     from?: string;
     to?: string;
-  }): Promise<ProfileData[]> {
-    // Mock data for now - replace with actual API call when endpoint is available
-    // Note: We're returning PractitionerProfileInformation and OrganizationProfileInformation
-    // which extend ProfileData, to match what the UI components expect
-    const mockProfiles: (PractitionerProfileInformation | OrganizationProfileInformation)[] = [
-      {
-        id: 'mock-practitioner-1',
-        name: 'John Doe',
-        description: 'BJJ practitioner with 5 years experience',
-        image_uri: 'https://via.placeholder.com/150',
-        current_rank: {
-          id: 'rank-1',
-          belt: 'Blue',
-          achieved_by_profile_id: 'mock-practitioner-1',
-          awarded_by_profile_id: 'mock-org-1',
-          achievement_date: '2024-01-15'
-        },
-        previous_ranks: [
-          {
-            id: 'rank-2',
-            belt: 'White',
-            achieved_by_profile_id: 'mock-practitioner-1',
-            awarded_by_profile_id: 'mock-org-1',
-            achievement_date: '2023-06-01'
-          }
-        ]
-      },
-      {
-        id: 'mock-practitioner-2',
-        name: 'Jane Smith',
-        description: 'Competition-focused BJJ athlete',
-        image_uri: 'https://via.placeholder.com/150',
-        current_rank: {
-          id: 'rank-3',
-          belt: 'Purple',
-          achieved_by_profile_id: 'mock-practitioner-2',
-          awarded_by_profile_id: 'mock-org-1',
-          achievement_date: '2024-03-20'
-        },
-        previous_ranks: [
-          {
-            id: 'rank-4',
-            belt: 'Blue',
-            achieved_by_profile_id: 'mock-practitioner-2',
-            awarded_by_profile_id: 'mock-org-1',
-            achievement_date: '2023-12-10'
-          },
-          {
-            id: 'rank-5',
-            belt: 'White',
-            achieved_by_profile_id: 'mock-practitioner-2',
-            awarded_by_profile_id: 'mock-org-1',
-            achievement_date: '2023-01-15'
-          }
-        ]
-      },
-      {
-        id: 'mock-organization-1',
-        name: 'Elite BJJ Academy',
-        description: 'Premier BJJ training facility',
-        image_uri: 'https://via.placeholder.com/150'
-      }
-    ];
-
-    // Apply filtering logic if profile_type is specified
-    let filteredProfiles = mockProfiles;
-    
-    if (params?.profile_type && params.profile_type.length > 0) {
-      filteredProfiles = mockProfiles.filter(profile => {
-        if ('current_rank' in profile) {
-          // This is a PractitionerProfileInformation
-          return params.profile_type!.includes('Practitioner');
-        } else {
-          // This is an OrganizationProfileInformation
-          return params.profile_type!.includes('Organization');
-        }
-      });
-    }
-
-    // Apply pagination
-    const offset = params?.offset || 0;
-    const limit = params?.limit || 10;
-    const paginatedProfiles = filteredProfiles.slice(offset, offset + limit);
-
-    return paginatedProfiles;
+  }): Promise<(PractitionerProfileInformation | OrganizationProfileInformation)[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    if (params?.offset) searchParams.append('offset', String(params.offset));
+    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile_type', p));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+    return api.get(`profiles?${searchParams.toString()}`).json();
   }
 
-  // Note: This is a mock implementation until the server endpoint is available
   static async getProfilesCount(params?: {
     limit?: number;
     offset?: number;
@@ -360,9 +306,13 @@ export class BeltSystemAPI {
     from?: string;
     to?: string;
   }): Promise<number> {
-    // Mock count for now - replace with actual API call when endpoint is available
-    // This matches the expected API response format (just a number)
-    return 3; // Mock count of 3 profiles
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    if (params?.offset) searchParams.append('offset', String(params.offset));
+    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile_type', p));
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+    return api.get(`profiles/count?${searchParams.toString()}`).json();
   }
 
   // Note: This is a mock implementation until the server endpoint is available

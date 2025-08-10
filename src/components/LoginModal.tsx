@@ -22,7 +22,9 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   const [profileType, setProfileType] = useState<ProfileType>('Practitioner');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [createName, setCreateName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createImageUri, setCreateImageUri] = useState('');
   const [createBelt, setCreateBelt] = useState<BJJBelt>('White');
@@ -128,8 +130,17 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
 
     // Create profile flow using Interactions API (build-tx)
-    if (!createName.trim()) {
-      setError('Name is required');
+    const nameRegex = /^\p{L}+$/u; // letters only (unicode)
+    if (!firstName.trim() || !nameRegex.test(firstName.trim())) {
+      setError('First name is required and must contain letters only');
+      return;
+    }
+    if (!lastName.trim() || !nameRegex.test(lastName.trim())) {
+      setError('Last name is required and must contain letters only');
+      return;
+    }
+    if (middleName.trim() && !nameRegex.test(middleName.trim())) {
+      setError('Middle name must contain letters only');
       return;
     }
     if (!changeAddress.trim() || !usedAddresses.trim()) {
@@ -222,11 +233,12 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       // ISO8601 without milliseconds (some servers enforce a stricter format)
       const isoNoMs = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
+      const fullName = `${firstName.trim()}${middleName.trim() ? ' ' + middleName.trim() : ''} ${lastName.trim()}`;
       const interaction = {
         action: {
           tag: 'CreateProfileWithRankAction',
           profileData: {
-            name: createName.trim(),
+            name: fullName,
             description: createDescription,
             image_uri: createImageUri || 'https://via.placeholder.com/150'
           },
@@ -266,7 +278,9 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     if (!isLoading) {
       setError('');
       setProfileId('');
-      setCreateName('');
+      setFirstName('');
+      setMiddleName('');
+      setLastName('');
       setCreateDescription('');
       setCreateImageUri('');
       setCreateBelt('White');
@@ -347,6 +361,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
         const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: txUnsigned, tx_wit: witnessHex });
         setTxId(res.id);
         setTxStatus('success');
+        onClose();
       } catch (err: any) {
         const msg = err?.message || String(err);
         setTxStatus('error');
@@ -442,8 +457,16 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
               <>
                 {/* Create Profile Fields */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">Name</label>
-                  <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Enter profile name" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <label className="block text-sm font-medium text-gray-900 mb-2">First Name</label>
+                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Middle Name (optional)</label>
+                  <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Middle name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Last Name</label>
+                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Description</label>
@@ -563,7 +586,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                   <Zap className="w-4 h-4 mr-2" /> Submit Transaction
                 </button>
               ) : (
-                <button type="submit" disabled={isLoading || !createName.trim()} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                <button type="submit" disabled={isLoading || !firstName.trim() || !lastName.trim()} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
                   {isLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Building...</>) : (<><Key className="w-4 h-4 mr-2" /> Build Transaction</>)}
                 </button>
               )}

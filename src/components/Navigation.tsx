@@ -2,19 +2,42 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Users, BarChart3, Plus, Home, User } from 'lucide-react';
+import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Belts', href: '/belts', icon: Trophy },
   { name: 'Profiles', href: '/profiles', icon: Users },
-  { name: 'Promotions', href: '/promotions', icon: Plus },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  // Promotions and Analytics removed; handled within other pages
   { name: 'My Profile', href: '/profile', icon: User },
 ];
 
 export function Navigation() {
   const pathname = usePathname();
+  // Default to dark to match server render; sync real preference after mount
+  const [theme, setTheme] = useState<'light'|'dark'>('dark');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // On mount, hydrate from localStorage and apply
+    try {
+      const saved = (localStorage.getItem('theme') as 'light'|'dark' | null);
+      const next = saved ?? 'dark';
+      document.documentElement.classList.toggle('dark', next === 'dark');
+      setTheme(next);
+    } catch {
+      document.documentElement.classList.toggle('dark', true);
+      setTheme('dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try { localStorage.setItem('theme', theme); } catch {}
+  }, [theme, mounted]);
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -49,6 +72,15 @@ export function Navigation() {
                 </Link>
               );
             })}
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="ml-4 inline-flex items-center px-2 py-1 border rounded text-sm text-gray-600 hover:text-gray-900"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? (<Sun className="w-4 h-4" />) : (<Moon className="w-4 h-4" />)}
+              </button>
+            )}
           </div>
 
           <div className="flex items-center sm:hidden">

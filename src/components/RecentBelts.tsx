@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { BeltBadge } from './BeltDisplay';
@@ -11,6 +12,12 @@ export function RecentBelts() {
     queryKey: ['recent-belts'],
     queryFn: () => BeltSystemAPI.getBelts({ limit: 10 }),
   });
+
+  const items = useMemo(() => {
+    const arr = Array.isArray(belts) ? [...belts] : [];
+    arr.sort((a, b) => new Date(b.achievement_date).getTime() - new Date(a.achievement_date).getTime());
+    return arr.slice(0, 10);
+  }, [belts]);
 
   if (isLoading) {
     return (
@@ -25,7 +32,7 @@ export function RecentBelts() {
     );
   }
 
-  if (!belts || belts.length === 0) {
+  if (!items || items.length === 0) {
     return (
       <div className="text-center py-8">
         <Trophy className="mx-auto h-12 w-12 text-gray-400" />
@@ -41,7 +48,7 @@ export function RecentBelts() {
     <div className="overflow-hidden">
       <div className="flow-root">
         <ul className="-my-5 divide-y divide-gray-200">
-          {belts.map((belt) => (
+          {items.map((belt) => (
             <li key={belt.id} className="py-4">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
@@ -89,7 +96,7 @@ export function RecentBelts() {
         </ul>
       </div>
       
-      {belts.length >= 10 && (
+      {items.length >= 10 && (
         <div className="text-center pt-4 border-t border-gray-200">
           <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
             View all belts →

@@ -7,7 +7,10 @@ import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2 } from 'lucide-react';
-import { BrowserWallet } from '@meshsdk/core';
+import { AwardBeltModal } from '../../components/AwardBeltModal';
+import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
+import { Address, Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
+import { useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../config/api';
 import type { 
   BJJBelt
@@ -21,6 +24,10 @@ export default function ProfilePage() {
   const [prefillUsed, setPrefillUsed] = useState<string[] | undefined>(undefined);
   const [prefillChange, setPrefillChange] = useState<string | undefined>(undefined);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [showAwardModal, setShowAwardModal] = useState(false);
+  const [lastTxId, setLastTxId] = useState<string | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   async function connectFirstAvailableWallet() {
     setWalletError(null);
@@ -200,6 +207,88 @@ export default function ProfilePage() {
     queryFn: () => BeltSystemAPI.getPromotions({ achieved_by: [profileId!], awarded_by: awardingPractitionerId ? [awardingPractitionerId] : [] }),
     enabled: isAuthenticated && !!profileId && !isMockProfile && !!awardingPractitionerId,
   });
+
+  const ownPendingPromotions = useMemo(() => {
+    return (userPromotions || []).filter(p => p.achieved_by_profile_id === profileId);
+  }, [userPromotions, profileId]);
+
+  function bytesToHex(bytes: Uint8Array): string {
+    return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function toHex114(addr: string): string | null {
+    const t = (addr || '').trim();
+    if (!t) return null;
+    if (/^[0-9a-fA-F]+$/.test(t)) return t.length === 114 ? t : null;
+    try {
+      const parsed: any = deserializeAddress(t);
+      const hex = bytesToHex(parsed.address.to_bytes());
+      return hex.length === 114 ? hex : null;
+    } catch {
+      try {
+        const a = Address.from_bech32(t);
+        const hex = bytesToHex(a.to_bytes());
+        return hex.length === 114 ? hex : null;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  async function ensureWalletConnected(): Promise<BrowserWallet> {
+    if (wallet) return wallet;
+    const connected = await connectFirstAvailableWallet();
+    setWallet(connected);
+    return connected;
+  }
+
+  async function handleAcceptPromotion(promotionId: string) {
+    try {
+      setAcceptingId(promotionId);
+      setWalletError(null);
+      const w = await ensureWalletConnected();
+      const nid = await w.getNetworkId();
+      if (nid !== 0) throw new Error('Wallet is on mainnet. Switch to testnet.');
+      const used = await w.getUsedAddresses();
+      const change = await w.getChangeAddress();
+      const usedHex = Array.from(new Set(used.map(toHex114).filter(Boolean) as string[]));
+      const changeHex = toHex114(change);
+      if (!changeHex) throw new Error('Invalid change address');
+      if (usedHex.length === 0) usedHex.push(changeHex);
+      if (!usedHex.includes(changeHex)) usedHex.push(changeHex);
+
+      const interaction = {
+        action: {
+          tag: 'AcceptPromotionAction',
+          promotionId,
+        },
+        userAddresses: {
+          usedAddresses: usedHex,
+          changeAddress: changeHex,
+        },
+      } as const;
+
+      const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
+      let signed = await w.signTx(unsigned, true);
+      // Ensure witness set
+      try {
+        TransactionWitnessSet.from_bytes(Buffer.from(signed, 'hex'));
+      } catch {
+        const tx = Transaction.from_bytes(Buffer.from(signed, 'hex'));
+        const ws = tx.witness_set();
+        signed = Buffer.from(ws.to_bytes()).toString('hex');
+      }
+      const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: unsigned, tx_wit: signed });
+      setLastTxId(res.id);
+      // refresh lists
+      queryClient.invalidateQueries({ queryKey: ['user-belts', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['user-promotions', profileId] });
+    } catch (e: any) {
+      setWalletError(e?.message || 'Failed to accept promotion');
+    } finally {
+      setAcceptingId(null);
+    }
+  }
 
   // Fetch user's belt count
   const { data: userBeltCount, isLoading: beltCountLoading } = useQuery({
@@ -538,6 +627,13 @@ export default function ProfilePage() {
                 <Edit3 className="w-4 h-4 mr-2" />
                 {isEditing ? 'Cancel' : 'Edit'}
               </button>
+              <button
+                onClick={() => setShowAwardModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <Award className="w-4 h-4 mr-2" />
+                Award Belt
+              </button>
               
               <button
                 onClick={handleLogout}
@@ -713,32 +809,34 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Recent Activity */}
+            {/* Pending Promotions (accept/reject) */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
-                
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Promotions</h3>
                 {promotionsLoading ? (
                   <div className="animate-pulse space-y-3">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="h-8 bg-gray-200 rounded"></div>
                     ))}
                   </div>
-                ) : userPromotions && userPromotions.length > 0 ? (
+                ) : ownPendingPromotions && ownPendingPromotions.length > 0 ? (
                   <div className="space-y-3">
-                    {userPromotions.slice(0, 5).map((promotion) => (
-                      <div key={promotion.id} className="flex items-center space-x-3">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-sm text-gray-600">
-                          Promoted to {promotion.belt} on {new Date(promotion.achievement_date).toLocaleDateString()}
-                        </span>
+                    {ownPendingPromotions.map((promotion) => (
+                      <div key={promotion.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded p-3">
+                        <div className="text-sm text-gray-700">
+                          <span className="font-medium">{promotion.belt}</span>
+                          <span className="ml-2 text-gray-500">{new Date(promotion.achievement_date).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleAcceptPromotion(promotion.id)} disabled={acceptingId === promotion.id} className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">{acceptingId === promotion.id ? 'Accepting...' : 'Accept'}</button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-6">
                     <Calendar className="mx-auto h-8 w-8 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">No recent activity</p>
+                    <p className="mt-2 text-sm text-gray-500">No pending promotions</p>
                   </div>
                 )}
               </div>
@@ -752,6 +850,19 @@ export default function ProfilePage() {
 
         {/* Authentication Modal removed; using LoginModal component in unauthenticated view */}
       </main>
+      {showAwardModal && (
+        <AwardBeltModal
+          isOpen={showAwardModal}
+          onClose={() => setShowAwardModal(false)}
+          promotedByProfileId={profileId!}
+          onSuccess={(txid) => setLastTxId(txid)}
+        />
+      )}
+      {lastTxId && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow">
+          Submitted Tx: {lastTxId}
+        </div>
+      )}
     </div>
   );
 }

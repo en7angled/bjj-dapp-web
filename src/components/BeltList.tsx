@@ -2,6 +2,9 @@
 
 import { BeltBadge } from './BeltDisplay';
 import { formatDate, truncateAddress } from '../lib/utils';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { BeltSystemAPI } from '../lib/api';
 import { RankInformation } from '../types/api';
 import { Trophy, User, Award, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -57,12 +60,41 @@ export function BeltList({
     );
   }
 
+  // Resolve names for achieved_by and awarded_by
+  const uniqueIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const b of belts) {
+      if (b.achieved_by_profile_id) s.add(b.achieved_by_profile_id);
+      if (b.awarded_by_profile_id) s.add(b.awarded_by_profile_id);
+    }
+    return Array.from(s);
+  }, [belts]);
+
+  const { data: nameMap } = useQuery({
+    queryKey: ['belt-names', uniqueIds],
+    queryFn: async () => {
+      const pairs: Array<[string, string]> = [];
+      for (const id of uniqueIds) {
+        const name = await BeltSystemAPI.resolveProfileName(id);
+        pairs.push([id, name]);
+      }
+      return Object.fromEntries(pairs) as Record<string, string>;
+    },
+    enabled: uniqueIds.length > 0,
+  });
+
+  const sortedBelts = useMemo(() => {
+    const arr = Array.isArray(belts) ? [...belts] : [];
+    arr.sort((a, b) => new Date(b.achievement_date).getTime() - new Date(a.achievement_date).getTime());
+    return arr;
+  }, [belts]);
+
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
         <div className="flow-root">
           <ul className="-my-5 divide-y divide-gray-200">
-            {belts.map((belt) => (
+            {sortedBelts.map((belt) => (
               <li key={belt.id} className="py-5">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
@@ -85,8 +117,8 @@ export function BeltList({
                           <User className="w-4 h-4 text-gray-400" />
                           <span className="font-medium">Achieved by:</span>
                         </div>
-                        <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {truncateAddress(belt.achieved_by_profile_id, 12)}
+                        <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                          {nameMap?.[belt.achieved_by_profile_id] || truncateAddress(belt.achieved_by_profile_id, 12)}
                         </div>
                       </div>
                       
@@ -95,8 +127,8 @@ export function BeltList({
                           <Award className="w-4 h-4 text-gray-400" />
                           <span className="font-medium">Awarded by:</span>
                         </div>
-                        <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {truncateAddress(belt.awarded_by_profile_id, 12)}
+                        <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                          {nameMap?.[belt.awarded_by_profile_id] || truncateAddress(belt.awarded_by_profile_id, 12)}
                         </div>
                       </div>
                     </div>
