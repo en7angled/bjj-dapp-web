@@ -1,0 +1,757 @@
+'use client';
+
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Navigation } from '../../components/Navigation';
+import { LoginModal } from '../../components/LoginModal';
+import { BeltSystemAPI } from '../../lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../contexts/AuthContext';
+import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2 } from 'lucide-react';
+import { BrowserWallet } from '@meshsdk/core';
+import { API_CONFIG } from '../../config/api';
+import type { 
+  BJJBelt
+} from '../../types/api';
+
+export default function ProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [loginMode, setLoginMode] = useState<'signin' | 'create'>('signin');
+  const [wallet, setWallet] = useState<any>(null);
+  const [prefillUsed, setPrefillUsed] = useState<string[] | undefined>(undefined);
+  const [prefillChange, setPrefillChange] = useState<string | undefined>(undefined);
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  async function connectFirstAvailableWallet() {
+    setWalletError(null);
+    const available = await BrowserWallet.getAvailableWallets();
+    console.log('Available wallets:', available);
+    if (!available || available.length === 0) {
+      throw new Error('No CIP-30 wallet detected. Install Nami, Lace, Eternl, Flint, etc.');
+    }
+    // Try enabling in order
+    let connected: any = null;
+    let lastErr: any = null;
+    for (const w of available) {
+      try {
+        connected = await BrowserWallet.enable(w.name);
+        if (connected) break;
+      } catch (e) {
+        lastErr = e;
+        console.error('Enable failed for wallet', w.name, e);
+      }
+    }
+    if (!connected) {
+      const names = available.map(w => w.name).join(', ');
+      const msg = `Failed to connect wallets: ${names}`;
+      throw new Error(msg);
+    }
+    try {
+      const nid = await connected.getNetworkId();
+      if (nid !== 0) {
+        throw new Error('Wallet is on mainnet. Please switch your wallet to testnet.');
+      }
+    } catch (e) {
+      // propagate explicit error
+      throw e instanceof Error ? e : new Error('Unable to verify wallet network');
+    }
+    return connected;
+  }
+  const modalRef = useRef<HTMLDivElement>(null);
+  const modalStateRef = useRef({ showAuthModal, loginMode });
+  const [forceRender, setForceRender] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  
+  // Update ref when state changes
+  modalStateRef.current = { showAuthModal, loginMode };
+  const [authForm, setAuthForm] = useState({
+    email: '',
+    password: '',
+    name: '',
+    description: '',
+    imageUri: '',
+    belt: 'White' as BJJBelt,
+    profileType: 'Practitioner' as 'Practitioner' | 'Organization'
+  });
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<'idle' | 'building' | 'ready' | 'submitting' | 'success' | 'error'>('idle');
+  const { 
+    isAuthenticated, 
+    user: profile, 
+    profileId, 
+    profileType, 
+    isLoading: profileLoading, 
+    login, 
+    logout 
+  } = useAuth();
+
+  // Normalize an asset id to dotted format and adjust known prefix if required
+  function normalizeAssetId(rawId: string | undefined | null): string | null {
+    if (!rawId) return null;
+    let id = rawId;
+    if (!id.includes('.') && id.length > 56) {
+      id = `${id.slice(0, 56)}.${id.slice(56)}`;
+    }
+    const parts = id.split('.');
+    if (parts.length !== 2) return id;
+    const [policy, name] = parts;
+    const lower = (name || '').toLowerCase();
+    let adjusted = lower;
+    if (lower.startsWith('000de14')) {
+      adjusted = `000643b${lower.slice(7)}`;
+    }
+    return `${policy}.${adjusted}`;
+  }
+
+  const isMockProfile = Boolean(profileId && (profileId.startsWith('mock-') || profileId.startsWith('user-') || profileId.startsWith('new-user-')));
+
+  // Persist modal state across re-renders
+  useEffect(() => {
+    if (showAuthModal && modalRef.current) {
+      // Ensure modal is visible and focused
+      modalRef.current.focus();
+      console.log('ProfilePage: Modal should be visible, showAuthModal:', showAuthModal);
+    }
+  }, [showAuthModal]);
+
+  // Sync modalVisible with showAuthModal
+  useEffect(() => {
+    setModalVisible(showAuthModal);
+  }, [showAuthModal]);
+
+  // Debug modal state changes
+  useEffect(() => {
+    console.log('ProfilePage: Modal state changed, showAuthModal:', showAuthModal);
+    console.log('ProfilePage: Modal visible state:', modalVisible);
+    console.log('ProfilePage: Modal ref state:', modalStateRef.current);
+    console.log('ProfilePage: Force render count:', forceRender);
+  }, [showAuthModal, modalVisible, forceRender]);
+
+  // Prefer belts from practitioner profile (authoritative)
+  const beltsFromProfile = useMemo(() => {
+    if (profile && 'current_rank' in profile) {
+      const previous = Array.isArray(profile.previous_ranks) ? profile.previous_ranks : [];
+      const combined = [...previous, profile.current_rank];
+      combined.sort((a, b) => new Date(a.achievement_date).getTime() - new Date(b.achievement_date).getTime());
+      return combined;
+    }
+    return [] as typeof filteredUserBelts;
+  }, [profile]);
+
+  // Fallback to API list if needed (kept for completeness)
+  const { data: userBeltsFallback } = useQuery({
+    queryKey: ['user-belts', profileId],
+    queryFn: () => BeltSystemAPI.getBelts({ achieved_by: [profileId!] }),
+    enabled: isAuthenticated && !!profileId && !isMockProfile && (!(profile && 'current_rank' in profile)),
+  });
+
+  const filteredUserBelts = useMemo(() => {
+    return (userBeltsFallback || []).filter(b => b.achieved_by_profile_id === profileId);
+  }, [userBeltsFallback, profileId]);
+
+  const displayedBelts = beltsFromProfile.length > 0 ? beltsFromProfile : filteredUserBelts;
+
+  // Resolve awarder profile names (practitioner) for display
+  const uniqueAwarders = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of displayedBelts) {
+      if (b?.awarded_by_profile_id) ids.add(b.awarded_by_profile_id);
+    }
+    return Array.from(ids);
+  }, [displayedBelts]);
+
+  const { data: awarderNameMap } = useQuery({
+    queryKey: ['awarder-names', uniqueAwarders],
+    queryFn: async () => {
+      const pairs: Array<[string, string]> = [];
+      for (const rawId of uniqueAwarders) {
+        const norm = normalizeAssetId(rawId);
+        try {
+          const pr = await BeltSystemAPI.getPractitionerProfile(norm!);
+          pairs.push([rawId, pr.name]);
+          if (norm !== rawId) pairs.push([norm!, pr.name]);
+        } catch {
+          pairs.push([rawId, rawId]);
+        }
+      }
+      return Object.fromEntries(pairs) as Record<string, string>;
+    },
+    enabled: uniqueAwarders.length > 0,
+  });
+
+  function resolveAwarderName(awarderId: string | undefined): string {
+    if (!awarderId) return '';
+    const selfId = normalizeAssetId(profileId);
+    const normalizedAwarder = normalizeAssetId(awarderId);
+    if (selfId && normalizedAwarder && selfId === normalizedAwarder) {
+      return 'You';
+    }
+    return awarderNameMap?.[awarderId] || awarderId;
+  }
+
+  // Fetch promotions only from awarding practitioner (awarded_by = practitioner of latest belt)
+  const awardingPractitionerId = useMemo(() => {
+    const latest = displayedBelts.length > 0 ? displayedBelts[displayedBelts.length - 1] : null;
+    return latest?.awarded_by_profile_id || null;
+  }, [displayedBelts]);
+
+  const { data: userPromotions, isLoading: promotionsLoading } = useQuery({
+    queryKey: ['user-promotions', profileId, awardingPractitionerId],
+    queryFn: () => BeltSystemAPI.getPromotions({ achieved_by: [profileId!], awarded_by: awardingPractitionerId ? [awardingPractitionerId] : [] }),
+    enabled: isAuthenticated && !!profileId && !isMockProfile && !!awardingPractitionerId,
+  });
+
+  // Fetch user's belt count
+  const { data: userBeltCount, isLoading: beltCountLoading } = useQuery({
+    queryKey: ['user-belt-count', profileId],
+    queryFn: () => BeltSystemAPI.getBeltsCount({ achieved_by: [profileId!] }),
+    enabled: isAuthenticated && !!profileId && !isMockProfile,
+  });
+
+  // Fetch user's promotion count
+  const { data: userPromotionCount, isLoading: promotionCountLoading } = useQuery({
+    queryKey: ['user-promotion-count', profileId],
+    queryFn: () => BeltSystemAPI.getPromotionsCount({ achieved_by: [profileId!] }),
+    enabled: isAuthenticated && !!profileId && !isMockProfile,
+  });
+
+  // Fetch organization profile if user has awarded_by_profile_id
+  const { data: organizationProfile, isLoading: orgLoading } = useQuery({
+    queryKey: ['organization-profile', displayedBelts?.[0]?.awarded_by_profile_id],
+    queryFn: () => {
+      const orgId = normalizeAssetId(displayedBelts?.[0]?.awarded_by_profile_id);
+      return orgId ? BeltSystemAPI.getOrganizationProfile(orgId) : null;
+    },
+    enabled: isAuthenticated && !!displayedBelts && displayedBelts.length > 0 && !!displayedBelts[0]?.awarded_by_profile_id && !isMockProfile,
+  });
+
+  const handleLogin = async () => {
+    console.log('ProfilePage: Login button clicked!');
+    console.log('ProfilePage: Current auth state before login:', { isAuthenticated, profileId, profileType });
+    
+    // Use a callback to ensure state is set properly
+    setLoginMode('signin');
+    setShowAuthModal(true);
+    setModalVisible(true);
+    
+    // Force update the ref immediately
+    modalStateRef.current.showAuthModal = true;
+    
+    // Force a re-render
+    setForceRender(prev => prev + 1);
+    
+    console.log('ProfilePage: Auth modal should be visible now, showAuthModal:', true);
+    console.log('ProfilePage: Modal ref state after setting:', modalStateRef.current);
+  };
+
+  const handleSignUp = async () => {
+    console.log('ProfilePage: Sign up button clicked!');
+    console.log('ProfilePage: Current auth state before signup:', { isAuthenticated, profileId, profileType });
+    
+    // Use a callback to ensure state is set properly
+    setLoginMode('create');
+    setShowAuthModal(true);
+    setModalVisible(true);
+    
+    // Force update the ref immediately
+    modalStateRef.current.showAuthModal = true;
+    
+    // Force a re-render
+    setForceRender(prev => prev + 1);
+    
+    console.log('ProfilePage: Auth modal should be visible now, showAuthModal:', true);
+    console.log('ProfilePage: Modal ref state after setting:', modalStateRef.current);
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('ProfilePage: Auth form submitted, mode:', loginMode);
+    console.log('ProfilePage: Form data:', authForm);
+    
+    setIsAuthenticating(true);
+    
+    try {
+      if (loginMode === 'signin') {
+        console.log('ProfilePage: Processing sign in...');
+        // Sign in existing user - for demo purposes, create a mock profile
+        const mockProfileId = `user-${Date.now()}`;
+        const mockProfileType = 'Practitioner' as const;
+        console.log('ProfilePage: Calling login with:', { mockProfileId, mockProfileType });
+        await login(mockProfileId, mockProfileType);
+        console.log('ProfilePage: Login successful, closing modal');
+        closeAuthModal();
+      } else {
+        console.log('ProfilePage: Processing create...');
+        // Create new user profile
+        if (!authForm.name.trim()) {
+          console.log('ProfilePage: Name is required, aborting');
+          return;
+        }
+        
+        // For demo purposes, we'll simulate a successful profile creation
+        // In a real app, you would build and submit a blockchain transaction
+        
+        console.log('ProfilePage: Creating new profile:', authForm);
+        
+        // Simulate transaction building delay
+        setTransactionStatus('building');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Simulate successful transaction
+        setTransactionStatus('success');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Sign in the newly created user
+        const newProfileId = `new-user-${Date.now()}`;
+        const newProfileType = authForm.profileType;
+        console.log('ProfilePage: Calling login with new profile:', { newProfileId, newProfileType });
+        await login(newProfileId, newProfileType);
+        
+        console.log('ProfilePage: Profile creation and login successful, closing modal');
+        closeAuthModal();
+        setTransactionStatus('idle');
+      }
+    } catch (error) {
+      console.error('ProfilePage: Authentication failed:', error);
+      setTransactionStatus('error');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleLogout = () => {
+    console.log('ProfilePage: Logout clicked, calling logout function');
+    console.log('ProfilePage: Current auth state before logout:', { isAuthenticated, profileId, profileType });
+    logout();
+    console.log('ProfilePage: Logout function called, checking if user is still authenticated...');
+    // Force clear localStorage as well to ensure complete logout
+    localStorage.removeItem('bjj-profile-id');
+    localStorage.removeItem('bjj-profile-type');
+    console.log('ProfilePage: LocalStorage cleared');
+  };
+
+  // Removed in-auth profile creation flow (moved to login modal)
+
+  const getBeltColor = (belt: BJJBelt) => {
+    const colors: Record<BJJBelt, string> = {
+      'White': 'bg-white border-gray-300 text-gray-800',
+      'Blue': 'bg-blue-500 text-white',
+      'Purple': 'bg-purple-500 text-white',
+      'Brown': 'bg-amber-700 text-white',
+      'Black': 'bg-black text-white',
+      'Black1': 'bg-black text-white',
+      'Black2': 'bg-black text-white',
+      'Black3': 'bg-black text-white',
+      'Black4': 'bg-black text-white',
+      'Black5': 'bg-black text-white',
+      'Black6': 'bg-black text-white',
+      'RedAndBlack': 'bg-red-800 text-white',
+      'RedAndWhite': 'bg-red-600 text-white',
+      'Red': 'bg-red-500 text-white',
+      'Red10': 'bg-red-900 text-white',
+    };
+    return colors[belt] || 'bg-gray-500 text-white';
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    setModalVisible(false);
+    modalStateRef.current.showAuthModal = false;
+    setAuthForm({ email: '', password: '', name: '', description: '', imageUri: '', belt: 'White', profileType: 'Practitioner' });
+    setTransactionStatus('idle');
+    setForceRender(prev => prev + 1);
+  };
+
+  if (!isAuthenticated) {
+    console.log('ProfilePage: User is NOT authenticated, showing welcome screen');
+    console.log('ProfilePage: Current auth state:', { isAuthenticated, profileId, profileType });
+    console.log('ProfilePage: Profile loading state:', profileLoading);
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md mx-auto">
+            <div className="bg-white shadow rounded-lg p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect your wallet</h2>
+                <p className="text-gray-600 mb-8">Connect a CIP-30 wallet to sign in. If no profile exists for your wallet, you can create one.</p>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const connected = await connectFirstAvailableWallet();
+                        setWallet(connected);
+                        const used = await connected.getUsedAddresses();
+                        const change = await connected.getChangeAddress();
+                        setPrefillUsed(used);
+                        setPrefillChange(change);
+                        // Resolve profile by wallet assets
+                        try {
+                          const assets = await connected.getAssets();
+                          const policy = API_CONFIG.PROFILE_POLICY_ID;
+                          let foundProfileId: string | null = null;
+                          let foundType: 'Practitioner' | 'Organization' = 'Practitioner';
+                          if (policy) {
+                            // Build candidate dotted ids from all assets under policy
+                            const candidates: string[] = [];
+                            const seen = new Set<string>();
+                            const adjustAssetNameHex = (hex: string): string => {
+                              const lower = (hex || '').toLowerCase();
+                              if (lower.startsWith('000de14')) {
+                                return `000643b${lower.slice(7)}`;
+                              }
+                              return lower;
+                            };
+                            for (const a of assets) {
+                              const unit: string | undefined = (a as any)?.unit;
+                              if (!unit) continue;
+                              if (unit.startsWith(policy)) {
+                                const assetNameHex = unit.slice(policy.length);
+                                const original = `${policy}.${assetNameHex}`;
+                                const adjusted = `${policy}.${adjustAssetNameHex(assetNameHex)}`;
+                                // Prefer adjusted first when it differs
+                                if (adjusted !== original) {
+                                  if (!seen.has(adjusted)) { candidates.push(adjusted); seen.add(adjusted); }
+                                  if (!seen.has(original)) { candidates.push(original); seen.add(original); }
+                                } else {
+                                  if (!seen.has(original)) { candidates.push(original); seen.add(original); }
+                                }
+                              }
+                            }
+                            console.debug('Profile detection candidates:', candidates);
+                            // Try practitioner first, then organization, pick the first 200
+                            for (const id of candidates) {
+                              try {
+                                const pr = await fetch(`/api/practitioner/${id}`);
+                                if (pr.ok) { foundProfileId = id; foundType = 'Practitioner'; break; }
+                              } catch {}
+                              try {
+                                const org = await fetch(`/api/organization/${id}`);
+                                if (org.ok) { foundProfileId = id; foundType = 'Organization'; break; }
+                              } catch {}
+                            }
+                          }
+                          if (foundProfileId) {
+                            await login(foundProfileId, foundType);
+                            return;
+                          }
+                        } catch (e) {
+                          console.warn('Asset lookup failed, falling back to create flow', e);
+                        }
+                        // No profile asset found; open create flow
+                        setLoginMode('create');
+                        setShowAuthModal(true);
+                        setModalVisible(true);
+                      } catch (e: any) {
+                        console.error('Wallet connect failed', e);
+                        setWalletError(e?.message || 'Wallet connect failed');
+                      }
+                    }}
+                    className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    Connect Wallet
+                  </button>
+                </div>
+                
+                {walletError && (
+                  <p className="mt-3 text-sm text-red-600">{walletError}</p>
+                )}
+
+                <LoginModal
+                  isOpen={Boolean(modalVisible || showAuthModal || modalStateRef.current.showAuthModal)}
+                  onClose={closeAuthModal}
+                  mode={loginMode}
+                  onModeChange={setLoginMode}
+                  initialUsedAddresses={prefillUsed}
+                  initialChangeAddress={prefillChange}
+                />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (profileLoading) {
+    console.log('ProfilePage: Profile is loading, showing loading state');
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="h-64 bg-gray-200 rounded mb-6"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <User className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Profile not found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Unable to load your profile information.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* Page header */}
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Manage your profile and view your BJJ journey
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Edit3 className="w-4 h-4 mr-2" />
+                {isEditing ? 'Cancel' : 'Edit'}
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 sm:px-0">
+          {/* Profile Information */}
+          <div className="lg:col-span-1">
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="text-center mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <User className="w-12 h-12 text-white" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900">{profile.name}</h3>
+                  <p className="text-sm text-gray-500">{profile.description}</p>
+                </div>
+
+                {/* Current Rank */}
+                {profile && 'current_rank' in profile && profile.current_rank && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">Current Rank</h4>
+                    <div className="flex items-center space-x-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getBeltColor(profile.current_rank.belt)}`}>
+                        {profile.current_rank.belt}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(profile.current_rank.achievement_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Profile Details */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Location: Not specified</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Phone: Not specified</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Email: Not specified</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Globe className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Website: Not specified</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Belt Progression & Lineage */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Belt Progression */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Belt Progression</h3>
+                
+                {false ? (
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                ) : displayedBelts && displayedBelts.length > 0 ? (
+                  <div className="space-y-4">
+                    {displayedBelts.map((belt, index) => (
+                      <div key={belt.id} className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                            <Trophy className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBeltColor(belt.belt)}`}>
+                              {belt.belt}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {new Date(belt.achievement_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Awarded by: {resolveAwarderName(belt.awarded_by_profile_id)}
+                          </p>
+                        </div>
+                        
+                        {index < displayedBelts.length - 1 && (
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Trophy className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No belts yet</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Your belt progression will appear here once you start training.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lineage & Academy Information */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Lineage & Academy</h3>
+                
+                <div className="space-y-4">
+                  {/* Academy Information */}
+                  {organizationProfile && (
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                          <Building2 className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-gray-900">Your Academy</h4>
+                          <p className="text-sm text-gray-600">{organizationProfile.name}</p>
+                          <p className="text-xs text-gray-500">{organizationProfile.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900">Instructor</h4>
+                      <p className="text-sm text-gray-600">Not specified</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-blue-600 rounded-full flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900">Academy</h4>
+                      <p className="text-sm text-gray-600">
+                        {organizationProfile ? organizationProfile.name : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
+                      <Award className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900">Association</h4>
+                      <p className="text-sm text-gray-600">Not specified</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+                
+                {promotionsLoading ? (
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-8 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                ) : userPromotions && userPromotions.length > 0 ? (
+                  <div className="space-y-3">
+                    {userPromotions.slice(0, 5).map((promotion) => (
+                      <div key={promotion.id} className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm text-gray-600">
+                          Promoted to {promotion.belt} on {new Date(promotion.achievement_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Calendar className="mx-auto h-8 w-8 text-gray-400" />
+                    <p className="mt-2 text-sm text-gray-500">No recent activity</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Profile Creation removed when authenticated */}
+          </div>
+        </div>
+
+        {/* Profile Creation Modal removed when authenticated */}
+
+        {/* Authentication Modal removed; using LoginModal component in unauthenticated view */}
+      </main>
+    </div>
+  );
+}

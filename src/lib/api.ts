@@ -6,6 +6,7 @@ import type {
   OrganizationProfileInformation,
   ProfileData,
   Interaction,
+  DiscriminatedInteraction,
   AddWitAndSubmitParams,
   GYTxId,
   BeltFrequency,
@@ -82,12 +83,21 @@ export class BeltSystemAPI {
 
   // Get practitioner profile
   static async getPractitionerProfile(profileId: string): Promise<PractitionerProfileInformation> {
-    return api.get(`practitioner/${profileId}`).json();
+    // Use Next.js API proxy to avoid CORS
+    const resp = await fetch(`/api/practitioner/${encodeURIComponent(profileId)}`, { headers: { Accept: 'application/json' } });
+    if (!resp.ok) {
+      throw new Error(await resp.text());
+    }
+    return resp.json();
   }
 
   // Get organization profile
   static async getOrganizationProfile(organizationId: string): Promise<OrganizationProfileInformation> {
-    return api.get(`organization/${organizationId}`).json();
+    const resp = await fetch(`/api/organization/${encodeURIComponent(organizationId)}`, { headers: { Accept: 'application/json' } });
+    if (!resp.ok) {
+      throw new Error(await resp.text());
+    }
+    return resp.json();
   }
 
   // Get pending promotions
@@ -141,13 +151,46 @@ export class BeltSystemAPI {
   }
 
   // Build transaction
-  static async buildTransaction(interaction: Interaction): Promise<string> {
-    return api.post('build-tx', { json: interaction }).text();
+  static async buildTransaction(interaction: Interaction | DiscriminatedInteraction): Promise<string> {
+    // Route through Next.js API to avoid CORS and keep credentials server-side
+    const resp = await fetch('/api/build-tx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(interaction),
+    });
+    let text = await resp.text();
+    if (!resp.ok) {
+      throw new Error(text || `HTTP ${resp.status}`);
+    }
+    // Backend may return a JSON string (e.g., "84a7...")
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === 'string') {
+        text = parsed;
+      }
+    } catch {
+      // not JSON, keep as-is
+    }
+    // remove any surrounding quotes/whitespace just in case
+    text = text.trim();
+    if (text.startsWith('"') && text.endsWith('"')) {
+      text = text.slice(1, -1);
+    }
+    return text;
   }
 
   // Submit signed transaction
   static async submitTransaction(params: AddWitAndSubmitParams): Promise<GYTxId> {
-    return api.post('submit-tx', { json: params }).json();
+    const resp = await fetch('/api/submit-tx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const text = await resp.text();
+    if (!resp.ok) {
+      throw new Error(text || `HTTP ${resp.status}`);
+    }
+    try { return JSON.parse(text) as GYTxId; } catch { return { id: text as unknown as string }; }
   }
 
   // Analytics methods
@@ -328,8 +371,8 @@ export class BeltSystemAPI {
     // Return a practitioner profile as an example
     return {
       id: id,
-      name: 'Mock Practitioner Profile',
-      description: 'This is a mock practitioner profile until the real endpoint is implemented',
+      name: 'Demo BJJ Fighter',
+      description: 'A passionate BJJ practitioner on their journey to black belt',
       image_uri: 'https://via.placeholder.com/150',
       current_rank: {
         id: 'mock-rank-1',
@@ -338,7 +381,15 @@ export class BeltSystemAPI {
         awarded_by_profile_id: 'mock-org-1',
         achievement_date: '2024-01-01'
       },
-      previous_ranks: []
+      previous_ranks: [
+        {
+          id: 'mock-rank-2',
+          belt: 'White',
+          achieved_by_profile_id: id,
+          awarded_by_profile_id: 'mock-org-1',
+          achievement_date: '2023-06-01'
+        }
+      ]
     };
   }
 }

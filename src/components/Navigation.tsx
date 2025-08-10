@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Users, BarChart3, Plus, Home } from 'lucide-react';
+import { Trophy, Users, BarChart3, Plus, Home, User } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Profiles', href: '/profiles', icon: Users },
   { name: 'Promotions', href: '/promotions', icon: Plus },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'My Profile', href: '/profile', icon: User },
 ];
 
 export function Navigation() {

@@ -7,7 +7,10 @@ export const API_CONFIG = {
   AUTH: {
     USERNAME: 'cardano',
     PASSWORD: 'lovelace'
-  }
+  },
+  // Chain-related config (profile asset detection)
+  PROFILE_POLICY_ID: process.env.NEXT_PUBLIC_PROFILE_POLICY_ID || '',
+  NETWORK_ID: Number(process.env.NEXT_PUBLIC_NETWORK_ID || '1'), // 0 testnet, 1 mainnet
 };
 
 // Common API endpoints
@@ -21,6 +24,6 @@ export const API_ENDPOINTS = {
   PROFILES_COUNT: 'profiles/count',
   PRACTITIONER: 'practitioner',
   ORGANIZATION: 'organization',
-  BUILD_TX: 'build-transaction',
-  SUBMIT_TX: 'submit-transaction',
+  BUILD_TX: 'build-tx',
+  SUBMIT_TX: 'submit-tx',
 } as const;

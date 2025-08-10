@@ -79,6 +79,23 @@ export interface ProfileActionType {
   };
 }
 
+// Discriminated union shape accepted by backend, used only for request payloads
+export type DiscriminatedProfileAction =
+  | { tag: 'CreateProfileWithRankAction'; contents: { profileData: ProfileData; profileType: ProfileType; creationDate: string; belt: BJJBelt } }
+  // Some servers accept tag with fields directly (no contents)
+  | { tag: 'CreateProfileWithRankAction'; profileData: ProfileData; profileType: ProfileType; creationDate: string; belt: BJJBelt }
+  | { tag: 'InitProfileAction'; contents: { profileData: ProfileData; profileType: ProfileType; creationDate: string } }
+  | { tag: 'UpdateProfileImageAction'; contents: { profileId: string; imageURI: string } }
+  | { tag: 'DeleteProfileAction'; contents: { profileId: string } }
+  | { tag: 'PromoteProfileAction'; contents: { promotedProfileId: string; promotedByProfileId: string; achievementDate: string; promotedBelt: BJJBelt } }
+  | { tag: 'AcceptPromotionAction'; contents: { promotionId: string } };
+
+export interface DiscriminatedInteraction {
+  action: DiscriminatedProfileAction;
+  userAddresses: UserAddresses;
+  recipient?: string;
+}
+
 export interface Interaction {
   action: ProfileActionType;
   userAddresses: UserAddresses;
