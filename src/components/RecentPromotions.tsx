@@ -6,6 +6,8 @@ import { BeltBadge } from './BeltDisplay';
 import { formatDateShort } from '../lib/utils';
 import { Clock, User, Award } from 'lucide-react';
 import { ProfileName } from './ProfileName';
+import { beltColors } from '../lib/utils';
+import { AwarderIcon } from '@/components/AwarderIcon';
 import { useMemo } from 'react';
 
 export function RecentPromotions() {
@@ -48,8 +50,8 @@ export function RecentPromotions() {
           className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <div className="flex-shrink-0">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <Award className="w-4 h-4 text-blue-600" />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: beltColors[promotion.belt] }}>
+              <Award className="w-4 h-4" style={{ color: promotion.belt === 'White' ? '#111827' : '#FFFFFF' }} />
             </div>
           </div>
           
@@ -69,7 +71,7 @@ export function RecentPromotions() {
               </div>
               
               <div className="flex items-center space-x-1">
-                <Award className="w-3 h-3 text-gray-400" />
+                <AwarderIcon id={promotion.awarded_by_profile_id} size="sm" />
                 <span className="font-medium">Awarded by:</span>
                 <ProfileName id={promotion.awarded_by_profile_id} className="font-mono text-xs" />
               </div>

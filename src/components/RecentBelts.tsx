@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { BeltBadge } from './BeltDisplay';
 import { formatDateShort } from '../lib/utils';
-import { Trophy, User, Award, Calendar } from 'lucide-react';
+import { Trophy, User, Calendar } from 'lucide-react';
 import { ProfileName } from './ProfileName';
+import { beltColors } from '../lib/utils';
+import { AwarderIcon } from '@/components/AwarderIcon';
 
 export function RecentBelts() {
   const { data: belts, isLoading } = useQuery({
@@ -54,8 +56,8 @@ export function RecentBelts() {
             <li key={belt.id} className="py-4">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: beltColors[belt.belt] }}>
+                    <Trophy className="w-5 h-5" style={{ color: belt.belt === 'White' ? '#111827' : '#FFFFFF' }} />
                   </div>
                 </div>
                 
@@ -75,7 +77,7 @@ export function RecentBelts() {
                     </div>
                     
                     <div className="flex items-center space-x-1">
-                      <Award className="w-3 h-3 text-gray-400" />
+                      <AwarderIcon id={belt.awarded_by_profile_id} size="sm" />
                       <span className="font-medium">Awarded by:</span>
                       <ProfileName id={belt.awarded_by_profile_id} className="font-mono text-xs" />
                     </div>

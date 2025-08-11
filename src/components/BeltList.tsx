@@ -1,12 +1,13 @@
 'use client';
 
 import { BeltBadge } from './BeltDisplay';
-import { formatDate, truncateAddress } from '../lib/utils';
+import { formatDate, truncateAddress, beltColors } from '../lib/utils';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { RankInformation } from '../types/api';
-import { Trophy, User, Award, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, User, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AwarderIcon } from '@/components/AwarderIcon';
 
 interface BeltListProps {
   belts: RankInformation[];
@@ -98,8 +99,8 @@ export function BeltList({
               <li key={belt.id} className="py-5">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: beltColors[belt.belt] }}>
+                      <Trophy className="w-6 h-6" style={{ color: belt.belt === 'White' ? '#111827' : '#FFFFFF' }} />
                     </div>
                   </div>
                   
@@ -124,7 +125,7 @@ export function BeltList({
                       
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
-                          <Award className="w-4 h-4 text-gray-400" />
+                          <AwarderIcon id={belt.awarded_by_profile_id} />
                           <span className="font-medium">Awarded by:</span>
                         </div>
                         <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
