@@ -25,17 +25,39 @@ const api = ky.create({
 });
 
 export class BeltSystemAPI {
-  // Simple in-memory cache for id -> profile name
+  // In-memory and localStorage-backed cache for id -> profile name
   private static profileNameCache: Map<string, string> = new Map();
+  private static storageKey = 'profileNameCacheV1';
+
+  private static loadNameCacheFromStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (!raw) return;
+      const obj = JSON.parse(raw) as Record<string, string>;
+      for (const [k, v] of Object.entries(obj)) this.profileNameCache.set(k, v);
+    } catch {}
+  }
+
+  private static saveNameCacheToStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const obj = Object.fromEntries(this.profileNameCache.entries());
+      window.localStorage.setItem(this.storageKey, JSON.stringify(obj));
+    } catch {}
+  }
 
   static async resolveProfileName(profileId: string): Promise<string> {
     if (!profileId) return '';
+    // lazy-load cache from storage once per session
+    if (this.profileNameCache.size === 0) this.loadNameCacheFromStorage();
     const cached = this.profileNameCache.get(profileId);
     if (cached) return cached;
     try {
       const pr = await this.getPractitionerProfile(profileId);
       if (pr?.name) {
         this.profileNameCache.set(profileId, pr.name);
+        this.saveNameCacheToStorage();
         return pr.name;
       }
     } catch {}
@@ -43,11 +65,13 @@ export class BeltSystemAPI {
       const org = await this.getOrganizationProfile(profileId);
       if (org?.name) {
         this.profileNameCache.set(profileId, org.name);
+        this.saveNameCacheToStorage();
         return org.name;
       }
     } catch {}
     // fallback to id if nothing resolved
     this.profileNameCache.set(profileId, profileId);
+    this.saveNameCacheToStorage();
     return profileId;
   }
   // Get all belts with optional filtering

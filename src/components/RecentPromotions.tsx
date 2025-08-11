@@ -3,14 +3,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { BeltBadge } from './BeltDisplay';
-import { formatDateShort, truncateAddress } from '../lib/utils';
+import { formatDateShort } from '../lib/utils';
 import { Clock, User, Award } from 'lucide-react';
+import { ProfileName } from './ProfileName';
+import { useMemo } from 'react';
 
 export function RecentPromotions() {
   const { data: promotions, isLoading } = useQuery({
     queryKey: ['recent-promotions'],
     queryFn: () => BeltSystemAPI.getPromotions({ limit: 5 }),
   });
+
 
   if (isLoading) {
     return (
@@ -62,17 +65,13 @@ export function RecentPromotions() {
               <div className="flex items-center space-x-1">
                 <User className="w-3 h-3 text-gray-400" />
                 <span className="font-medium">Achieved by:</span>
-                <span className="font-mono text-xs">
-                  {truncateAddress(promotion.achieved_by_profile_id)}
-                </span>
+                <ProfileName id={promotion.achieved_by_profile_id} className="font-mono text-xs" />
               </div>
               
               <div className="flex items-center space-x-1">
                 <Award className="w-3 h-3 text-gray-400" />
                 <span className="font-medium">Awarded by:</span>
-                <span className="font-mono text-xs">
-                  {truncateAddress(promotion.awarded_by_profile_id)}
-                </span>
+                <ProfileName id={promotion.awarded_by_profile_id} className="font-mono text-xs" />
               </div>
             </div>
           </div>
