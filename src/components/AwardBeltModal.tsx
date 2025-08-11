@@ -36,6 +36,8 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
   }
 
   type AddressInfo = { hex: string; length: number };
+  // Normalize user-entered address (bech32 or hex) into CBOR hex and record its length
+  // Backend requires 114-character CBOR hex for addresses
   function toHexInfo(addr: string): AddressInfo {
     const trimmed = (addr || '').trim();
     if (!trimmed) return { hex: '', length: 0 };
@@ -57,6 +59,7 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
     }
   }
 
+  // Connect to the first available CIP-30 wallet and prefill addresses
   async function ensureWallet() {
     if (wallet) return wallet;
     const available = await BrowserWallet.getAvailableWallets();
@@ -70,6 +73,7 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
     return w;
   }
 
+  // Build an unsigned transaction representing a promotion action
   async function buildTx(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -103,6 +107,7 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
         },
       } as const;
 
+      // Request unsigned tx from backend using the typed interaction
       const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
       setTxUnsigned(unsigned);
       setTxStatus('ready');
@@ -114,6 +119,8 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
     }
   }
 
+  // Sign the previously built unsigned tx and submit it via backend
+  // If wallet returns a full transaction, extract its witness set prior to submission.
   async function signAndSubmit() {
     setError('');
     setIsLoading(true);

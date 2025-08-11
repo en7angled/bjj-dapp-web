@@ -39,6 +39,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileType, setProfileType] = useState<ProfileType | null>(null);
 
+  // Normalize a profile asset id into the dotted form policyId.assetNameHex and
+  // adjust known legacy prefixes to their current equivalents.
   function normalizeAssetId(rawId: string): string {
     if (!rawId) return rawId;
     let id = rawId;

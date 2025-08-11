@@ -34,3 +34,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Project Tour and Architecture
+
+- Project Tour: see [`docs/TOUR.md`](docs/TOUR.md) for a guided walkthrough of key files (pages → components → API wrapper → API routes).
+- Architecture: see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for request/transaction flow diagrams and explanations.
+
+## Tests
+
+- Run unit tests: `npm run test`
+- Watch mode: `npm run test:watch`

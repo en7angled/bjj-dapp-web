@@ -367,32 +367,4 @@ export class BeltSystemAPI {
     if (params?.to) searchParams.append('to', params.to);
     return api.get(`profiles/count?${searchParams.toString()}`).json();
   }
-
-  // Note: This is a mock implementation until the server endpoint is available
-  static async getProfile(id: string): Promise<PractitionerProfileInformation> {
-    // Mock data for now - replace with actual API call when endpoint is available
-    // Return a practitioner profile as an example
-    return {
-      id: id,
-      name: 'Demo BJJ Fighter',
-      description: 'A passionate BJJ practitioner on their journey to black belt',
-      image_uri: 'https://via.placeholder.com/150',
-      current_rank: {
-        id: 'mock-rank-1',
-        belt: 'Blue',
-        achieved_by_profile_id: id,
-        awarded_by_profile_id: 'mock-org-1',
-        achievement_date: '2024-01-01'
-      },
-      previous_ranks: [
-        {
-          id: 'mock-rank-2',
-          belt: 'White',
-          achieved_by_profile_id: id,
-          awarded_by_profile_id: 'mock-org-1',
-          achievement_date: '2023-06-01'
-        }
-      ]
-    };
-  }
 }

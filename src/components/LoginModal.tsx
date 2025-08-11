@@ -58,6 +58,8 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
 
   type AddressInfo = { hex: string; length: number; type: 'base' | 'enterprise' | 'pointer' | 'reward' | 'byron' | 'unknown' };
 
+  // Convert a user-provided address (bech32 or hex) into CBOR hex and capture its length/type.
+  // Backend expects 114-char CBOR hex for used/change addresses.
   function toHexInfo(addr: string): AddressInfo {
     const trimmed = addr.trim();
     if (!trimmed) return { hex: '', length: 0, type: 'unknown' };
@@ -82,6 +84,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   }
 
   // Ensure a CIP-30 wallet is connected; returns true if connected
+  // Ensure a CIP-30 compatible browser wallet is connected and prefill addresses
   async function ensureWalletConnected(): Promise<boolean> {
     if (wallet) return true;
     try {
@@ -105,6 +108,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
   }
 
+  // Handle both signin (simple) and create profile (tx build/sign) flows
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -159,6 +163,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
         const ok = await ensureWalletConnected();
         if (!ok) return;
       }
+      // Prefer testnet for safety during development; mismatch leads to upstream errors
       try {
         const nid = await wallet!.getNetworkId();
         if (nid !== 0) {
@@ -170,6 +175,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       }
 
       // Build debug context before request
+      // Build debug snapshot to help diagnose bad address formats
       const lengths = usedInfos.map((u) => u.length);
       const changeLen = changeInfo.length;
       const sample = JSON.stringify({
@@ -254,6 +260,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       } as const;
 
       console.debug('Building interaction', interaction);
+      // Ask backend to build an unsigned transaction from the typed interaction
       const built = await BeltSystemAPI.buildTransaction(interaction);
       setTxUnsigned(built);
       setTxStatus('ready');
@@ -316,6 +323,8 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   }
 
   // Ask wallet to sign the unsigned tx CBOR, then submit via backend
+  // Ask wallet to sign the unsigned tx and submit via backend
+  // Some wallets return a full signed tx; we extract the witness set when needed.
   async function signWithWalletAndSubmit() {
     if (!wallet) {
       setError('Connect a wallet first');
