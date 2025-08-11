@@ -87,8 +87,8 @@ export function PromotionsByBeltOverTimeChart({ months = 12 }: { months?: number
         label: getBeltDisplayName(belt),
         data: keys.map((k) => counters.get(k)?.get(belt) || 0),
         backgroundColor: beltColors[belt],
-        borderColor: beltColors[belt],
-        borderWidth: 1,
+        borderColor: belt === 'White' ? '#111827' : beltColors[belt],
+        borderWidth: belt === 'White' ? 2 : 1,
         stack: 'belts',
       })),
     ];

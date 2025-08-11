@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
+import { beltColors, beltOrder, getBeltDisplayName } from '../lib/utils';
+import type { BJJBelt, RankInformation } from '../types/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,52 +18,59 @@ import { Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-type TopAwarder = { id: string; name: string; count: number };
+const CORE_BELTS: BJJBelt[] = ['White', 'Blue', 'Purple', 'Brown', 'Black'];
 
 export function TopAwardersChart({ days = 90, limit = 10 }: { days?: number; limit?: number }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['top-awarders', days, limit],
+    queryKey: ['top-awarders-stacked', days, limit],
     queryFn: async () => {
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - days);
       const belts = await BeltSystemAPI.getBelts({
         from: fromDate.toISOString(),
         to: new Date().toISOString(),
-        limit: 1000,
+        limit: 2000,
         order_by: 'achievement_date',
         order: 'desc',
       });
 
-      const counts = new Map<string, number>();
-      for (const b of belts) {
-        const id = b.awarded_by_profile_id;
-        if (!id) continue;
-        counts.set(id, (counts.get(id) || 0) + 1);
+      // Count per awarder per belt category (aggregate post-Black as Senior Ranks)
+      const counts = new Map<string, Map<BJJBelt | 'Senior Ranks', number>>();
+      const totals = new Map<string, number>();
+
+      const isSenior = (belt: BJJBelt) => beltOrder.indexOf(belt) > beltOrder.indexOf('Black');
+
+      for (const b of belts as RankInformation[]) {
+        const awarder = b.awarded_by_profile_id;
+        // Ignore self-awarded belts
+        if (!awarder || b.achieved_by_profile_id === awarder) continue;
+        const bucket: BJJBelt | 'Senior Ranks' = isSenior(b.belt) ? 'Senior Ranks' : b.belt;
+        const inner = counts.get(awarder) || new Map<BJJBelt | 'Senior Ranks', number>();
+        inner.set(bucket, (inner.get(bucket) || 0) + 1);
+        counts.set(awarder, inner);
+        totals.set(awarder, (totals.get(awarder) || 0) + 1);
       }
 
-      const sorted = Array.from(counts.entries())
-        .map(([id, count]) => ({ id, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, limit);
+      // Top awarders by total
+      const sortedAwarders = Array.from(totals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([id]) => id);
 
+      // Resolve names
       const names = await Promise.all(
-        sorted.map(async (x) => {
+        sortedAwarders.map(async (id) => {
           try {
-            const name = await BeltSystemAPI.resolveProfileName(x.id);
-            return name || x.id;
+            return (await BeltSystemAPI.resolveProfileName(id)) || id;
           } catch {
-            return x.id;
+            return id;
           }
         })
       );
 
-      const result: TopAwarder[] = sorted.map((x, i) => ({ id: x.id, name: names[i], count: x.count }));
-      return result;
+      return { awarderIds: sortedAwarders, awarderNames: names, counts };
     },
   });
-
-  const labels = useMemo(() => (data ? data.map((d) => d.name) : []), [data]);
-  const counts = useMemo(() => (data ? data.map((d) => d.count) : []), [data]);
 
   if (isLoading) {
     return (
@@ -71,40 +80,50 @@ export function TopAwardersChart({ days = 90, limit = 10 }: { days?: number; lim
     );
   }
 
-  if (!data || data.length === 0) {
+  if (!data || data.awarderIds.length === 0) {
     return <div className="flex items-center justify-center h-64 text-gray-500">No data available</div>;
   }
 
+  const labels = data.awarderNames;
+  const beltKeys: (BJJBelt | 'Senior Ranks')[] = [...CORE_BELTS, 'Senior Ranks'];
+
+  const datasets = beltKeys.map((bk) => {
+    const backgroundColor =
+      bk === 'Senior Ranks' ? '#6B7280' : beltColors[bk as BJJBelt];
+    const borderColor = bk === 'White' ? '#111827' : backgroundColor;
+    const borderWidth = bk === 'White' ? 2 : 1;
+    return {
+      label: bk === 'Senior Ranks' ? 'Senior Ranks' : getBeltDisplayName(bk as BJJBelt),
+      data: data.awarderIds.map((id) => data.counts.get(id)?.get(bk) || 0),
+      backgroundColor,
+      borderColor,
+      borderWidth,
+      stack: 'belts',
+    };
+  });
+
   const chartData = {
     labels,
-    datasets: [
-      {
-        label: 'Promotions Awarded',
-        data: counts,
-        backgroundColor: '#3B82F6',
-        borderColor: '#2563EB',
-        borderWidth: 1,
-      },
-    ],
+    datasets,
   };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: { position: 'bottom' as const },
       tooltip: {
         callbacks: {
           label: function (context: any) {
-            return `Count: ${context.parsed.y}`;
+            return `${context.dataset.label}: ${context.parsed.y}`;
           },
         },
       },
       title: { display: false },
     },
     scales: {
-      y: { beginAtZero: true, ticks: { precision: 0 } },
-      x: { ticks: { maxRotation: 45, minRotation: 0 } },
+      y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
+      x: { stacked: true, ticks: { maxRotation: 45, minRotation: 0 } },
     },
   } as const;
 

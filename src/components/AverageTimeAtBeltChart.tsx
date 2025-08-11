@@ -144,6 +144,8 @@ export function AverageTimeAtBeltChart() {
 
   const includeColors = CORE_BELTS.map((b) => hexToRgba(beltColors[b], 0.35));
   const excludeColors = CORE_BELTS.map((b) => hexToRgba(beltColors[b], 0.85));
+  const includeBorders = CORE_BELTS.map((b) => (b === 'White' ? '#111827' : 'transparent'));
+  const excludeBorders = CORE_BELTS.map((b) => (b === 'White' ? '#111827' : 'transparent'));
 
   const chartData = {
     labels: averages.labels,
@@ -152,8 +154,8 @@ export function AverageTimeAtBeltChart() {
         label: 'Including Not Yet Promoted',
         data: averages.includeOpen,
         backgroundColor: includeColors,
-        borderColor: includeColors,
-        borderWidth: 0,
+        borderColor: includeBorders,
+        borderWidth: 2,
         grouped: false,
         barThickness: 24,
       },
@@ -161,8 +163,8 @@ export function AverageTimeAtBeltChart() {
         label: 'Excluding Not Yet Promoted',
         data: averages.excludeOpen,
         backgroundColor: excludeColors,
-        borderColor: excludeColors,
-        borderWidth: 0,
+        borderColor: excludeBorders,
+        borderWidth: 2,
         grouped: false,
         barThickness: 14,
       },
