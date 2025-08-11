@@ -4,6 +4,9 @@ import { Navigation } from '../components/Navigation';
 import { RecentBelts } from '../components/RecentBelts';
 import { BeltDistributionChart } from '../components/BeltDistributionChart';
 import { RecentPromotions } from '../components/RecentPromotions';
+import { TopAwardersChart } from '../components/TopAwardersChart';
+import { PromotionsByBeltOverTimeChart } from '../components/PromotionsByBeltOverTimeChart';
+import { AverageTimeAtBeltChart } from '../components/AverageTimeAtBeltChart';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -193,6 +196,38 @@ export default function Home() {
                 Recent Community Promotions
               </h3>
               <RecentPromotions />
+            </div>
+          </div>
+
+          {/* Top awarders */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                Top Awarders (Last 90 Days)
+              </h3>
+              <TopAwardersChart days={90} />
+            </div>
+          </div>
+
+          {/* Promotions by belt over time */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                Promotions by Belt Over Time (Last 12 Months)
+              </h3>
+              <PromotionsByBeltOverTimeChart months={12} />
+            </div>
+          </div>
+        </div>
+
+        {/* Average time at belt */}
+        <div className="mt-8 px-4 sm:px-0">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                Average Time at Each Belt (months)
+              </h3>
+              <AverageTimeAtBeltChart />
             </div>
           </div>
         </div>
