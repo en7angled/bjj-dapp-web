@@ -51,6 +51,7 @@ export function BeltDistributionPie() {
   const values = labels.map((l) => freqMap.get(l) || 0);
   const total = values.reduce((a, b) => a + b, 0);
 
+  // Ensure white slice is visible on both themes by adding a dark border
   const backgroundColor = [
     beltColors.White,
     beltColors.Blue,
@@ -58,6 +59,14 @@ export function BeltDistributionPie() {
     beltColors.Brown,
     beltColors.Black,
     '#6B7280',
+  ];
+  const borderColor = [
+    '#111827', // dark border for white
+    '#1E3A8A',
+    '#4C1D95',
+    '#4A2C13',
+    '#111827',
+    '#374151',
   ];
 
   const chartData = {
@@ -67,7 +76,8 @@ export function BeltDistributionPie() {
         label: 'Practitioner share',
         data: values,
         backgroundColor,
-        borderWidth: 1,
+        borderWidth: 2,
+        borderColor,
       },
     ],
   };
