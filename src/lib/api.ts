@@ -83,7 +83,9 @@ export class BeltSystemAPI {
     achieved_by?: string[];
     awarded_by?: string[];
     from?: string;
-    to?: string;
+      to?: string;
+      order_by?: 'achievement_date';
+      order?: 'asc' | 'desc';
   }): Promise<RankInformation[]> {
     const searchParams = new URLSearchParams();
     
@@ -95,6 +97,11 @@ export class BeltSystemAPI {
     if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
+    // Prefer server-side ordering for stable pagination
+    const orderBy = params?.order_by || 'achievement_date';
+    const order = params?.order || 'desc';
+    searchParams.append('order_by', orderBy);
+    searchParams.append('order', order);
 
     return api.get(`belts?${searchParams.toString()}`).json();
   }

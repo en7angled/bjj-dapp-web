@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Navigation } from '../../components/Navigation';
-import { BeltList } from '../../components/BeltList';
-import { BeltFilters } from '../../components/BeltFilters';
+import { BeltList } from '@/components/BeltList';
+import { BeltFilters } from '@/components/BeltFilters';
 import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy } from 'lucide-react';
@@ -23,12 +23,23 @@ export default function BeltsPage() {
 
   const { data: belts, isLoading } = useQuery({
     queryKey: ['belts', filters],
-    queryFn: () => BeltSystemAPI.getBelts(filters),
+    queryFn: () => BeltSystemAPI.getBelts({ ...filters, order_by: 'achievement_date', order: 'desc' }),
+    placeholderData: (prev) => prev,
   });
 
+  const countFilters = {
+    profile: filters.profile,
+    belt: filters.belt,
+    achieved_by: filters.achieved_by,
+    awarded_by: filters.awarded_by,
+    from: filters.from,
+    to: filters.to,
+  };
   const { data: totalCount } = useQuery({
-    queryKey: ['belts-count', filters],
-    queryFn: () => BeltSystemAPI.getBeltsCount(filters),
+    queryKey: ['belts-count', countFilters],
+    queryFn: () => BeltSystemAPI.getBeltsCount(countFilters),
+    placeholderData: (prev) => prev,
+    staleTime: 1000 * 60, // 1 min
   });
 
   const handleFilterChange = (newFilters: typeof filters) => {

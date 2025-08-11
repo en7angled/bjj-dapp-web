@@ -1,13 +1,14 @@
 'use client';
 
 import { BeltBadge } from './BeltDisplay';
-import { formatDate, truncateAddress, beltColors } from '../lib/utils';
+import { formatDate, beltColors } from '../lib/utils';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { RankInformation } from '../types/api';
 import { Trophy, User, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AwarderIcon } from '@/components/AwarderIcon';
+import { ProfileName } from '@/components/ProfileName';
 
 interface BeltListProps {
   belts: RankInformation[];
@@ -28,28 +29,7 @@ export function BeltList({
 }: BeltListProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Resolve names for achieved_by and awarded_by
-  const uniqueIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const b of belts) {
-      if (b.achieved_by_profile_id) s.add(b.achieved_by_profile_id);
-      if (b.awarded_by_profile_id) s.add(b.awarded_by_profile_id);
-    }
-    return Array.from(s);
-  }, [belts]);
-
-  const { data: nameMap } = useQuery({
-    queryKey: ['belt-names', uniqueIds],
-    queryFn: async () => {
-      const pairs: Array<[string, string]> = [];
-      for (const id of uniqueIds) {
-        const name = await BeltSystemAPI.resolveProfileName(id);
-        pairs.push([id, name]);
-      }
-      return Object.fromEntries(pairs) as Record<string, string>;
-    },
-    enabled: uniqueIds.length > 0,
-  });
+  // Remove batch name fetch; names resolve progressively via ProfileName per row
 
   const sortedBelts = useMemo(() => {
     const arr = Array.isArray(belts) ? [...belts] : [];
@@ -119,7 +99,7 @@ export function BeltList({
                           <span className="font-medium">Achieved by:</span>
                         </div>
                         <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                          {nameMap?.[belt.achieved_by_profile_id] || truncateAddress(belt.achieved_by_profile_id, 12)}
+                          <ProfileName id={belt.achieved_by_profile_id} />
                         </div>
                       </div>
                       
@@ -129,7 +109,7 @@ export function BeltList({
                           <span className="font-medium">Awarded by:</span>
                         </div>
                         <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                          {nameMap?.[belt.awarded_by_profile_id] || truncateAddress(belt.awarded_by_profile_id, 12)}
+                          <ProfileName id={belt.awarded_by_profile_id} />
                         </div>
                       </div>
                     </div>

@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun } from 'lucide-react';
+import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun, Award } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { beltColors } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
 const navigation = [
@@ -39,6 +41,16 @@ export function Navigation() {
     try { localStorage.setItem('theme', theme); } catch {}
   }, [theme, mounted]);
 
+  const { user: profile, isAuthenticated } = useAuth();
+  const currentBelt = (profile && 'current_rank' in (profile as any)) ? (profile as any).current_rank?.belt : null;
+  const navProfileIcon = isAuthenticated && currentBelt ? (
+    <span className="inline-flex items-center justify-center rounded-full w-5 h-5 mr-2" style={{ backgroundColor: beltColors[currentBelt] }}>
+      <Award className="w-3.5 h-3.5" style={{ color: currentBelt === 'White' ? '#111827' : '#FFFFFF' }} />
+    </span>
+  ) : (
+    <User className="w-4 h-4 mr-2" />
+  );
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,7 +79,7 @@ export function Navigation() {
                       : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
-                  <item.icon className="w-4 h-4 mr-2" />
+                  {item.name === 'My Profile' ? navProfileIcon : <item.icon className="w-4 h-4 mr-2" />}
                   {item.name}
                 </Link>
               );
