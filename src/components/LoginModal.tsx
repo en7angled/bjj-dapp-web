@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { X, User, Building, Key, AlertCircle, Zap, Image as ImageIcon } from 'lucide-react';
 import type { BJJBelt, ProfileType } from '../types/api';
@@ -372,17 +372,19 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
   }
 
-  if (!isOpen) return null;
-
-  // Prefill addresses for create flow if provided
-  if (mode === 'create') {
+  // Prefill addresses for create flow if provided (run after mount to avoid render-time state changes)
+  useEffect(() => {
+    if (mode !== 'create') return;
     if (initialUsedAddresses && usedAddresses === '') {
       setUsedAddresses(initialUsedAddresses.join('\n'));
     }
     if (initialChangeAddress && changeAddress === '') {
       setChangeAddress(initialChangeAddress);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, initialUsedAddresses, initialChangeAddress]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

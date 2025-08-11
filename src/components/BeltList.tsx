@@ -27,6 +27,35 @@ export function BeltList({
 }: BeltListProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  // Resolve names for achieved_by and awarded_by
+  const uniqueIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const b of belts) {
+      if (b.achieved_by_profile_id) s.add(b.achieved_by_profile_id);
+      if (b.awarded_by_profile_id) s.add(b.awarded_by_profile_id);
+    }
+    return Array.from(s);
+  }, [belts]);
+
+  const { data: nameMap } = useQuery({
+    queryKey: ['belt-names', uniqueIds],
+    queryFn: async () => {
+      const pairs: Array<[string, string]> = [];
+      for (const id of uniqueIds) {
+        const name = await BeltSystemAPI.resolveProfileName(id);
+        pairs.push([id, name]);
+      }
+      return Object.fromEntries(pairs) as Record<string, string>;
+    },
+    enabled: uniqueIds.length > 0,
+  });
+
+  const sortedBelts = useMemo(() => {
+    const arr = Array.isArray(belts) ? [...belts] : [];
+    arr.sort((a, b) => new Date(b.achievement_date).getTime() - new Date(a.achievement_date).getTime());
+    return arr;
+  }, [belts]);
+
   if (isLoading) {
     return (
       <div className="bg-white shadow rounded-lg">
@@ -59,35 +88,6 @@ export function BeltList({
       </div>
     );
   }
-
-  // Resolve names for achieved_by and awarded_by
-  const uniqueIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const b of belts) {
-      if (b.achieved_by_profile_id) s.add(b.achieved_by_profile_id);
-      if (b.awarded_by_profile_id) s.add(b.awarded_by_profile_id);
-    }
-    return Array.from(s);
-  }, [belts]);
-
-  const { data: nameMap } = useQuery({
-    queryKey: ['belt-names', uniqueIds],
-    queryFn: async () => {
-      const pairs: Array<[string, string]> = [];
-      for (const id of uniqueIds) {
-        const name = await BeltSystemAPI.resolveProfileName(id);
-        pairs.push([id, name]);
-      }
-      return Object.fromEntries(pairs) as Record<string, string>;
-    },
-    enabled: uniqueIds.length > 0,
-  });
-
-  const sortedBelts = useMemo(() => {
-    const arr = Array.isArray(belts) ? [...belts] : [];
-    arr.sort((a, b) => new Date(b.achievement_date).getTime() - new Date(a.achievement_date).getTime());
-    return arr;
-  }, [belts]);
 
   return (
     <div className="bg-white shadow rounded-lg">

@@ -1,11 +1,9 @@
 'use client';
 
 import { Navigation } from '../components/Navigation';
-import { DashboardStats } from '../components/DashboardStats';
 import { RecentBelts } from '../components/RecentBelts';
 import { BeltDistributionChart } from '../components/BeltDistributionChart';
 import { RecentPromotions } from '../components/RecentPromotions';
-import { APITest } from '../components/APITest';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';

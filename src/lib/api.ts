@@ -282,6 +282,28 @@ export class BeltSystemAPI {
     return Math.round(growthRate * 10) / 10; // Round to 1 decimal place
   }
 
+  // Profile metadata (off-chain) via Next API
+  static async getProfileMetadata(profileId: string): Promise<{ profile_id: string; location?: string; phone?: string; email?: string; website?: string; updated_at?: string; }> {
+    const resp = await fetch(`/api/profile-metadata?id=${encodeURIComponent(profileId)}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(await resp.text());
+    return resp.json();
+  }
+
+  static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; }): Promise<{ ok: boolean; updated_at: string }> {
+    const resp = await fetch('/api/profile-metadata', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!resp.ok) throw new Error(await resp.text());
+    return resp.json();
+  }
+
+  static async uploadProfileImage(profileId: string, file: File): Promise<{ ok: true; image_url: string }> {
+    const data = new FormData();
+    data.append('profile_id', profileId);
+    data.append('file', file);
+    const resp = await fetch('/api/profile-image', { method: 'POST', body: data });
+    if (!resp.ok) throw new Error(await resp.text());
+    return resp.json();
+  }
+
   // Profile-related endpoints
   static async getProfiles(params?: {
     limit?: number;

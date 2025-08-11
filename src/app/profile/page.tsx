@@ -55,8 +55,8 @@ export default function ProfilePage() {
     }
     try {
       const nid = await connected.getNetworkId();
-      if (nid !== 0) {
-        throw new Error('Wallet is on mainnet. Please switch your wallet to testnet.');
+      if (nid !== API_CONFIG.NETWORK_ID) {
+        throw new Error(`Wallet network mismatch. Expected ${API_CONFIG.NETWORK_ID === 0 ? 'testnet' : 'mainnet'}.`);
       }
     } catch (e) {
       // propagate explicit error
@@ -91,6 +91,8 @@ export default function ProfilePage() {
     login, 
     logout 
   } = useAuth();
+
+  const normalizedProfileId = useMemo(() => normalizeAssetId(profileId || null), [profileId]);
 
   // Normalize an asset id to dotted format and adjust known prefix if required
   function normalizeAssetId(rawId: string | undefined | null): string | null {
@@ -196,6 +198,15 @@ export default function ProfilePage() {
     return awarderNameMap?.[awarderId] || awarderId;
   }
 
+  // Professor/Lineage: the practitioner who awarded the latest belt
+  const latestBelt = useMemo(() => (displayedBelts.length > 0 ? displayedBelts[displayedBelts.length - 1] : null), [displayedBelts]);
+  const professorId = useMemo(() => normalizeAssetId(latestBelt?.awarded_by_profile_id || ''), [latestBelt]);
+  const { data: professorProfile } = useQuery({
+    queryKey: ['professor-profile', professorId],
+    queryFn: () => BeltSystemAPI.getPractitionerProfile(professorId!),
+    enabled: isAuthenticated && !!professorId && !isMockProfile,
+  });
+
   // Fetch promotions only from awarding practitioner (awarded_by = practitioner of latest belt)
   const awardingPractitionerId = useMemo(() => {
     const latest = displayedBelts.length > 0 ? displayedBelts[displayedBelts.length - 1] : null;
@@ -248,7 +259,7 @@ export default function ProfilePage() {
       setWalletError(null);
       const w = await ensureWalletConnected();
       const nid = await w.getNetworkId();
-      if (nid !== 0) throw new Error('Wallet is on mainnet. Switch to testnet.');
+      if (nid !== API_CONFIG.NETWORK_ID) throw new Error('Wallet network mismatch.');
       const used = await w.getUsedAddresses();
       const change = await w.getChangeAddress();
       const usedHex = Array.from(new Set(used.map(toHex114).filter(Boolean) as string[]));
@@ -451,6 +462,111 @@ export default function ProfilePage() {
     setForceRender(prev => prev + 1);
   };
 
+  // Metadata: load and allow editing
+  const { data: profileMeta } = useQuery({
+    queryKey: ['profile-metadata', normalizedProfileId],
+    queryFn: () => BeltSystemAPI.getProfileMetadata(normalizedProfileId!),
+    enabled: isAuthenticated && !!normalizedProfileId,
+  });
+
+  const [metaDraft, setMetaDraft] = useState<{ location?: string; phone?: string; email?: string; website?: string; image_url?: string }>({});
+  useEffect(() => {
+    setMetaDraft({
+      location: (profileMeta as any)?.location || undefined,
+      phone: (profileMeta as any)?.phone || undefined,
+      email: (profileMeta as any)?.email || undefined,
+      website: (profileMeta as any)?.website || undefined,
+      image_url: (profileMeta as any)?.image_url || undefined,
+    });
+  }, [profileMeta]);
+
+  async function saveMetadata() {
+    await BeltSystemAPI.putProfileMetadata({ profile_id: normalizedProfileId!, ...metaDraft });
+    // refresh cached metadata and exit edit mode
+    queryClient.invalidateQueries({ queryKey: ['profile-metadata', normalizedProfileId] });
+    setIsEditing(false);
+  }
+
+  async function syncImageOnChain() {
+    try {
+      if (!metaDraft.image_url) throw new Error('No image to sync');
+      setWalletError(null);
+      const w = await ensureWalletConnected();
+      const nid = await w.getNetworkId();
+      if (nid !== API_CONFIG.NETWORK_ID) throw new Error('Wallet network mismatch.');
+      const used = await w.getUsedAddresses();
+      const change = await w.getChangeAddress();
+      const usedHex = Array.from(new Set((used.map(toHex114).filter(Boolean) as string[])));
+      const changeHex = toHex114(change);
+      if (!changeHex) throw new Error('Invalid change address');
+      if (usedHex.length === 0) usedHex.push(changeHex);
+      if (!usedHex.includes(changeHex)) usedHex.push(changeHex);
+
+      const absoluteUrl = metaDraft.image_url.startsWith('http') ? metaDraft.image_url : `${window.location.origin}${metaDraft.image_url}`;
+      const interaction = {
+        action: {
+          tag: 'UpdateProfileImageAction',
+          profileId: normalizeAssetId(profileId!)!,
+          imageURI: absoluteUrl,
+        },
+        userAddresses: {
+          usedAddresses: usedHex,
+          changeAddress: changeHex,
+        },
+      } as const;
+
+      const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
+      let signed = await w.signTx(unsigned, true);
+      try {
+        TransactionWitnessSet.from_bytes(Buffer.from(signed, 'hex'));
+      } catch {
+        const tx = Transaction.from_bytes(Buffer.from(signed, 'hex'));
+        const ws = tx.witness_set();
+        signed = Buffer.from(ws.to_bytes()).toString('hex');
+      }
+      const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: unsigned, tx_wit: signed });
+      setLastTxId(res.id);
+    } catch (e: any) {
+      setWalletError(e?.message || 'Failed to sync image on-chain');
+    }
+  }
+
+  function toAbsoluteUrl(maybeRelative?: string): string | null {
+    if (!maybeRelative) return null;
+    if (/^https?:\/\//i.test(maybeRelative)) return maybeRelative;
+    if (typeof window === 'undefined') return null;
+    return `${window.location.origin}${maybeRelative}`;
+  }
+
+  const isImageSynced = useMemo(() => {
+    try {
+      const dbRel = metaDraft.image_url;
+      const dbAbs = toAbsoluteUrl(dbRel) || dbRel || null;
+      const chainUri = (profile && (profile as any).image_uri) ? String((profile as any).image_uri) : null;
+      if (!dbAbs || !chainUri) return false;
+      if (chainUri === dbAbs || chainUri === dbRel) return true;
+      // fallback: allow matching by pathname suffix
+      try {
+        const rel = dbRel?.startsWith('/') ? dbRel : new URL(dbAbs).pathname;
+        return rel ? chainUri.endsWith(rel) : false;
+      } catch {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }, [metaDraft.image_url, profile]);
+
+  function cancelEdit() {
+    setMetaDraft({
+      location: (profileMeta as any)?.location || undefined,
+      phone: (profileMeta as any)?.phone || undefined,
+      email: (profileMeta as any)?.email || undefined,
+      website: (profileMeta as any)?.website || undefined,
+    });
+    setIsEditing(false);
+  }
+
   if (!isAuthenticated) {
     console.log('ProfilePage: User is NOT authenticated, showing welcome screen');
     console.log('ProfilePage: Current auth state:', { isAuthenticated, profileId, profileType });
@@ -512,14 +628,14 @@ export default function ProfilePage() {
                               }
                             }
                             console.debug('Profile detection candidates:', candidates);
-                            // Try practitioner first, then organization, pick the first 200
+                            // Try practitioner first, then organization
                             for (const id of candidates) {
                               try {
-                                const pr = await fetch(`/api/practitioner/${id}`);
+                                const pr = await fetch(`/api/practitioner/${encodeURIComponent(id)}`);
                                 if (pr.ok) { foundProfileId = id; foundType = 'Practitioner'; break; }
                               } catch {}
                               try {
-                                const org = await fetch(`/api/organization/${id}`);
+                                const org = await fetch(`/api/organization/${encodeURIComponent(id)}`);
                                 if (org.ok) { foundProfileId = id; foundType = 'Organization'; break; }
                               } catch {}
                             }
@@ -621,13 +737,6 @@ export default function ProfilePage() {
             
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <Edit3 className="w-4 h-4 mr-2" />
-                {isEditing ? 'Cancel' : 'Edit'}
-              </button>
-              <button
                 onClick={() => setShowAwardModal(true)}
                 className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
@@ -651,10 +760,54 @@ export default function ProfilePage() {
           <div className="lg:col-span-1">
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    {isEditing ? 'Cancel' : 'Edit'}
+                  </button>
+                </div>
                 <div className="text-center mb-6">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-12 h-12 text-white" />
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-2 overflow-hidden">
+                    {metaDraft.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={metaDraft.image_url} alt="Profile" className="w-24 h-24 object-cover" />
+                    ) : (
+                      <User className="w-12 h-12 text-white" />
+                    )}
                   </div>
+                  {isEditing && (
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <label className="text-xs text-gray-600" htmlFor="avatarUpload">Upload image</label>
+                      <input id="avatarUpload" type="file" accept="image/*" className="text-xs" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const { image_url } = await BeltSystemAPI.uploadProfileImage(profileId!, file);
+                          setMetaDraft(v => ({ ...v, image_url }));
+                        } catch (err) {
+                          console.error('Image upload failed', err);
+                        }
+                      }} />
+                    </div>
+                  )}
+                  {!isEditing && Boolean((profileMeta as any)?.image_url) && (
+                    <div className="flex items-center justify-center mb-2">
+                      {isImageSynced ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-green-600 text-white text-xs">Image synced</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={syncImageOnChain}
+                          className="inline-flex items-center px-2.5 py-1 rounded bg-orange-500 text-white text-xs hover:bg-orange-600"
+                        >
+                          Sync image on-chain
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <h3 className="text-lg font-medium text-gray-900">{profile.name}</h3>
                   <p className="text-sm text-gray-500">{profile.description}</p>
                 </div>
@@ -678,20 +831,42 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Location: Not specified</span>
+                    {isEditing ? (
+                      <input value={metaDraft.location || ''} onChange={(e)=> setMetaDraft(v=>({...v, location: e.target.value}))} placeholder="Location" className="text-sm text-gray-900 border rounded px-2 py-1" />
+                    ) : (
+                      <span className="text-sm text-gray-600">Location: {metaDraft.location || 'Not specified'}</span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Phone: Not specified</span>
+                    {isEditing ? (
+                      <input value={metaDraft.phone || ''} onChange={(e)=> setMetaDraft(v=>({...v, phone: e.target.value}))} placeholder="Phone" className="text-sm text-gray-900 border rounded px-2 py-1" />
+                    ) : (
+                      <span className="text-sm text-gray-600">Phone: {metaDraft.phone || 'Not specified'}</span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-3">
                     <Mail className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Email: Not specified</span>
+                    {isEditing ? (
+                      <input value={metaDraft.email || ''} onChange={(e)=> setMetaDraft(v=>({...v, email: e.target.value}))} placeholder="Email" className="text-sm text-gray-900 border rounded px-2 py-1" />
+                    ) : (
+                      <span className="text-sm text-gray-600">Email: {metaDraft.email || 'Not specified'}</span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-3">
                     <Globe className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Website: Not specified</span>
+                    {isEditing ? (
+                      <input value={metaDraft.website || ''} onChange={(e)=> setMetaDraft(v=>({...v, website: e.target.value}))} placeholder="Website" className="text-sm text-gray-900 border rounded px-2 py-1" />
+                    ) : (
+                      <span className="text-sm text-gray-600">Website: {metaDraft.website || 'Not specified'}</span>
+                    )}
                   </div>
+                  {isEditing && (
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={saveMetadata} className="inline-flex items-center px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Save</button>
+                      <button onClick={cancelEdit} className="inline-flex items-center px-3 py-1 rounded border text-sm text-gray-700 bg-white hover:bg-gray-50">Cancel</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -779,8 +954,10 @@ export default function ProfilePage() {
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-900">Instructor</h4>
-                      <p className="text-sm text-gray-600">Not specified</p>
+                      <h4 className="text-sm font-medium text-gray-900">Professor</h4>
+                      <p className="text-sm text-gray-600">
+                        {professorProfile?.name || resolveAwarderName(professorId || undefined) || 'Not specified'}
+                      </p>
                     </div>
                   </div>
                   
