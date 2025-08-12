@@ -21,6 +21,7 @@ export function Navigation() {
   // Default to dark to match server render; sync real preference after mount
   const [theme, setTheme] = useState<'light'|'dark'>('dark');
   const [mounted, setMounted] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -101,26 +102,53 @@ export function Navigation() {
           <div className="flex items-center sm:hidden">
             <button
               type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
             >
-              <span className="sr-only">Open main menu</span>
-              <svg
-                className="block h-6 w-6"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+              <span className="sr-only">{mobileOpen ? 'Close main menu' : 'Open main menu'}</span>
+              {mobileOpen ? (
+                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
+        </div>
+      </div>
+      {/* Mobile menu */}
+      <div id="mobile-menu" className={`${mobileOpen ? 'block' : 'hidden'} sm:hidden border-t border-gray-200`}
+           onClick={() => setMobileOpen(false)}>
+        <div className="pt-2 pb-3 space-y-1 px-2">
+          {navigation.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {item.name === 'My Profile' ? navProfileIcon : <item.icon className="w-5 h-5 mr-2" />}
+                {item.name}
+              </Link>
+            );
+          })}
+          {mounted && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setTheme(theme === 'dark' ? 'light' : 'dark'); }}
+              className="mt-2 w-full inline-flex items-center px-3 py-2 border rounded-md text-base text-gray-600 hover:text-gray-900"
+            >
+              {theme === 'dark' ? (<Sun className="w-5 h-5 mr-2" />) : (<Moon className="w-5 h-5 mr-2" />)}
+              Toggle theme
+            </button>
+          )}
         </div>
       </div>
     </nav>
