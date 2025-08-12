@@ -56,7 +56,7 @@ export function Navigation() {
   );
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="relative z-40 bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -121,16 +121,19 @@ export function Navigation() {
           </div>
         </div>
       </div>
-      {/* Mobile menu */}
-      <div id="mobile-menu" className={`${mobileOpen ? 'block' : 'hidden'} sm:hidden border-t border-gray-200`}
-           onClick={() => setMobileOpen(false)}>
-        <div className="pt-2 pb-3 space-y-1 px-2">
+      {/* Mobile menu overlay */}
+      <div
+        id="mobile-menu"
+        className={`${mobileOpen ? 'block' : 'hidden'} sm:hidden absolute top-16 inset-x-0 border-t border-gray-200 bg-white dark:bg-gray-900 shadow-lg`}
+      >
+        <div className="pt-2 pb-3 space-y-1 px-3">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => setMobileOpen(false)}
                 className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
                   isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
@@ -142,7 +145,7 @@ export function Navigation() {
           })}
           {mounted && (
             <button
-              onClick={(e) => { e.stopPropagation(); setTheme(theme === 'dark' ? 'light' : 'dark'); }}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="mt-2 w-full inline-flex items-center px-3 py-2 border rounded-md text-base text-gray-600 hover:text-gray-900"
             >
               {theme === 'dark' ? (<Sun className="w-5 h-5 mr-2" />) : (<Moon className="w-5 h-5 mr-2" />)}
