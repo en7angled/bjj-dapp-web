@@ -366,9 +366,9 @@ export class BeltSystemAPI {
     to?: string;
   }): Promise<(PractitionerProfileInformation | OrganizationProfileInformation)[]> {
     const searchParams = new URLSearchParams();
-    if (params?.limit) searchParams.append('limit', String(params.limit));
-    if (params?.offset) searchParams.append('offset', String(params.offset));
-    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile_type', p));
+    if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
+    if (params?.offset !== undefined) searchParams.append('offset', String(params.offset));
+    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile-type', p));
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
     return api.get(`profiles?${searchParams.toString()}`).json();
@@ -382,9 +382,9 @@ export class BeltSystemAPI {
     to?: string;
   }): Promise<number> {
     const searchParams = new URLSearchParams();
-    if (params?.limit) searchParams.append('limit', String(params.limit));
-    if (params?.offset) searchParams.append('offset', String(params.offset));
-    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile_type', p));
+    if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
+    if (params?.offset !== undefined) searchParams.append('offset', String(params.offset));
+    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile-type', p));
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
     return api.get(`profiles/count?${searchParams.toString()}`).json();
