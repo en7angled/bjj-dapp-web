@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Decentralized BJJ Belt System",
   description: "A decentralized system for managing Brazilian Jiu-Jitsu belt promotions and rankings on the blockchain",
   keywords: ["BJJ", "Brazilian Jiu-Jitsu", "blockchain", "decentralized", "belt system", "martial arts"],
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
