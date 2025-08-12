@@ -56,7 +56,7 @@ export function Navigation() {
   );
 
   return (
-    <nav className="relative z-40 bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900">
+    <nav className="bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -121,12 +121,22 @@ export function Navigation() {
           </div>
         </div>
       </div>
-      {/* Mobile menu overlay */}
+      {/* Mobile drawer */}
+      {/* Backdrop */}
+      <div
+        className={`sm:hidden fixed inset-0 z-40 bg-black/30 transition-opacity ${mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        aria-hidden={!mobileOpen}
+        onClick={() => setMobileOpen(false)}
+      />
+      {/* Panel */}
       <div
         id="mobile-menu"
-        className={`${mobileOpen ? 'block' : 'hidden'} sm:hidden absolute top-16 inset-x-0 border-t border-gray-200 bg-white dark:bg-gray-900 shadow-lg`}
+        className={`sm:hidden fixed inset-y-0 right-0 z-50 w-72 max-w-[85%] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Main menu"
       >
-        <div className="pt-2 pb-3 space-y-1 px-3">
+        <div className="pt-4 pb-6 space-y-2 px-4">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -146,7 +156,7 @@ export function Navigation() {
           {mounted && (
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="mt-2 w-full inline-flex items-center px-3 py-2 border rounded-md text-base text-gray-600 hover:text-gray-900"
+              className="mt-3 w-full inline-flex items-center px-3 py-2 border rounded-md text-base text-gray-600 hover:text-gray-900"
             >
               {theme === 'dark' ? (<Sun className="w-5 h-5 mr-2" />) : (<Moon className="w-5 h-5 mr-2" />)}
               Toggle theme
