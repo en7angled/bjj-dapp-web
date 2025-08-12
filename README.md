@@ -1,46 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## BJJ DApp Web
 
-## Getting Started
+Next.js app for the Decentralized BJJ Belt System.
 
-First, run the development server:
+### Prerequisites
+- Node.js 20 (for local/dev)
+- Docker + Docker Compose (for container deploy)
+
+### Environment
+Create `.env.local` (local dev) or `.env` (docker-compose) at project root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_API_URL=https://bjjserver-995707778143.europe-west1.run.app
+NEXT_PUBLIC_PROFILE_POLICY_ID=<policy_id>
+NEXT_PUBLIC_NETWORK_ID=1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Development
+```bash
+npm ci
+npm run dev
+# http://localhost:3000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production build (bare metal)
+```bash
+npm ci
+npm run build
+npm run start -- -p 3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ensure the following directories exist and are writable for persistence:
+- `data/` for SQLite DB (`profile-metadata`)
+- `public/uploads/` for profile images
 
-## Learn More
+### Reverse proxy (optional)
+Use Nginx to proxy `http://127.0.0.1:3000` and enable TLS. Increase `client_max_body_size` to allow uploads.
 
-To learn more about Next.js, take a look at the following resources:
+### Docker (recommended)
+A multi-stage Dockerfile and docker-compose are provided.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1) Build and run
+```bash
+docker compose up -d --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2) Volumes (persisted on host)
+- `./data` → `/app/data`
+- `./public/uploads` → `/app/public/uploads`
 
-## Deploy on Vercel
+3) Environment (compose reads from `.env`)
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_PROFILE_POLICY_ID`
+- `NEXT_PUBLIC_NETWORK_ID`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Server-side API proxies
+To keep Basic Auth server-side, the app uses Next.js API routes to proxy to the backend:
+- `/api/build-tx`, `/api/submit-tx`
+- `/api/practitioner/[id]`, `/api/organization/[id]`
+- `/api/belts`, `/api/belts/count`, `/api/belts/frequency`
+- `/api/promotions`, `/api/promotions/count`
+- `/api/profiles`, `/api/profiles/count`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Client calls (in `src/lib/api.ts`) target these routes; no Basic Auth is exposed to the browser.
 
-## Project Tour and Architecture
+### Persistence
+- Off-chain profile metadata stored in SQLite at `data/metadata.db` via `/api/profile-metadata`.
+- Profile images stored under `public/uploads/` (resized WebP), uploaded via `/api/profile-image`.
 
-- Project Tour: see [`docs/TOUR.md`](docs/TOUR.md) for a guided walkthrough of key files (pages → components → API wrapper → API routes).
-- Architecture: see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for request/transaction flow diagrams and explanations.
-
-## Tests
-
-- Run unit tests: `npm run test`
-- Watch mode: `npm run test:watch`
+### Notes
+- Native modules: `better-sqlite3`, `sharp` are built in the Docker image. If building on host, you may need build-essential and Python.
+- If you change env values, rebuild or restart the container: `docker compose up -d --build`.
