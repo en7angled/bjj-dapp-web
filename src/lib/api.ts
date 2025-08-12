@@ -343,8 +343,17 @@ export class BeltSystemAPI {
     return resp.json();
   }
 
-  static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; }): Promise<{ ok: boolean; updated_at: string }> {
-    const resp = await fetch('/api/profile-metadata', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; image_url?: string; }): Promise<{ ok: boolean; updated_at: string }> {
+    // Ensure all named parameters exist (SQLite named params require presence)
+    const body = {
+      profile_id: payload.profile_id,
+      location: payload.location ?? null,
+      phone: payload.phone ?? null,
+      email: payload.email ?? null,
+      website: payload.website ?? null,
+      image_url: payload.image_url ?? null,
+    };
+    const resp = await fetch('/api/profile-metadata', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) throw new Error(await resp.text());
     return resp.json();
   }
