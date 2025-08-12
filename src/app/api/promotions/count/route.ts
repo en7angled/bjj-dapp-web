@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../../../../../config/api';
+import { API_CONFIG } from '../../../../config/api';
 
 export async function GET(req: Request) {
   const incoming = new URL(req.url);

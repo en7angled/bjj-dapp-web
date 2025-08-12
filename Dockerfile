@@ -3,7 +3,7 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
