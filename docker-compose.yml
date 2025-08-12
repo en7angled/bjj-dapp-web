@@ -1,0 +1,21 @@
+version: '3.9'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bjj-dapp-web
+    environment:
+      # Expose your backend URL and chain config to the client
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_PROFILE_POLICY_ID=${NEXT_PUBLIC_PROFILE_POLICY_ID}
+      - NEXT_PUBLIC_NETWORK_ID=${NEXT_PUBLIC_NETWORK_ID:-1}
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist SQLite DB and uploads
+      - ./data:/app/data
+      - ./public/uploads:/app/public/uploads
+    restart: unless-stopped
+
+
