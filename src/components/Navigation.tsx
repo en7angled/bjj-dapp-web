@@ -131,7 +131,7 @@ export function Navigation() {
       {/* Panel */}
       <div
         id="mobile-menu"
-        className={`sm:hidden fixed inset-y-0 right-0 z-50 w-72 max-w-[85%] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`sm:hidden fixed inset-y-0 right-0 z-50 w-72 max-w-[85%] bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-800 transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
         role="dialog"
         aria-modal="true"
         aria-label="Main menu"
@@ -144,8 +144,10 @@ export function Navigation() {
                 key={item.name}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
-                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                    : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 {item.name === 'My Profile' ? navProfileIcon : <item.icon className="w-5 h-5 mr-2" />}
@@ -153,15 +155,17 @@ export function Navigation() {
               </Link>
             );
           })}
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="mt-3 w-full inline-flex items-center px-3 py-2 border rounded-md text-base text-gray-600 hover:text-gray-900"
-            >
-              {theme === 'dark' ? (<Sun className="w-5 h-5 mr-2" />) : (<Moon className="w-5 h-5 mr-2" />)}
-              Toggle theme
-            </button>
-          )}
+          <div className="mt-2 border-t border-gray-200 dark:border-gray-800 pt-3">
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="w-full inline-flex items-center px-3 py-2 border rounded-md text-base border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                {theme === 'dark' ? (<Sun className="w-5 h-5 mr-2" />) : (<Moon className="w-5 h-5 mr-2" />)}
+                Toggle theme
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </nav>
