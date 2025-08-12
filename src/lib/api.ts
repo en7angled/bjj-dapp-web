@@ -28,6 +28,8 @@ export class BeltSystemAPI {
   // In-memory and localStorage-backed cache for id -> profile name
   private static profileNameCache: Map<string, string> = new Map();
   private static storageKey = 'profileNameCacheV1';
+  private static profileCache = new Map<string, { data: PractitionerProfileInformation | OrganizationProfileInformation; expires: number }>();
+  private static profileTtlMs = 5 * 60 * 1000; // 5 minutes
 
   private static loadNameCacheFromStorage() {
     if (typeof window === 'undefined') return;
@@ -139,21 +141,31 @@ export class BeltSystemAPI {
 
   // Get practitioner profile
   static async getPractitionerProfile(profileId: string): Promise<PractitionerProfileInformation> {
+    const now = Date.now();
+    const cached = this.profileCache.get(`practitioner:${profileId}`);
+    if (cached && cached.expires > now) return cached.data as PractitionerProfileInformation;
     // Use Next.js API proxy to avoid CORS
-    const resp = await fetch(`/api/practitioner/${encodeURIComponent(profileId)}`, { headers: { Accept: 'application/json' } });
+    const resp = await fetch(`/api/practitioner/${encodeURIComponent(profileId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!resp.ok) {
       throw new Error(await resp.text());
     }
-    return resp.json();
+    const data = await resp.json();
+    this.profileCache.set(`practitioner:${profileId}`, { data, expires: now + this.profileTtlMs });
+    return data;
   }
 
   // Get organization profile
   static async getOrganizationProfile(organizationId: string): Promise<OrganizationProfileInformation> {
-    const resp = await fetch(`/api/organization/${encodeURIComponent(organizationId)}`, { headers: { Accept: 'application/json' } });
+    const now = Date.now();
+    const cached = this.profileCache.get(`organization:${organizationId}`);
+    if (cached && cached.expires > now) return cached.data as OrganizationProfileInformation;
+    const resp = await fetch(`/api/organization/${encodeURIComponent(organizationId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!resp.ok) {
       throw new Error(await resp.text());
     }
-    return resp.json();
+    const data = await resp.json();
+    this.profileCache.set(`organization:${organizationId}`, { data, expires: now + this.profileTtlMs });
+    return data;
   }
 
   // Get pending promotions

@@ -172,20 +172,15 @@ export default function ProfilePage() {
   const { data: awarderNameMap } = useQuery({
     queryKey: ['awarder-names', uniqueAwarders],
     queryFn: async () => {
-      const pairs: Array<[string, string]> = [];
-      for (const rawId of uniqueAwarders) {
-        const norm = normalizeAssetId(rawId);
-        try {
-          const pr = await BeltSystemAPI.getPractitionerProfile(norm!);
-          pairs.push([rawId, pr.name]);
-          if (norm !== rawId) pairs.push([norm!, pr.name]);
-        } catch {
-          pairs.push([rawId, rawId]);
-        }
+      const entries: Array<[string, string]> = [];
+      for (const id of uniqueAwarders) {
+        const name = await BeltSystemAPI.resolveProfileName(normalizeAssetId(id)!);
+        entries.push([id, name]);
       }
-      return Object.fromEntries(pairs) as Record<string, string>;
+      return Object.fromEntries(entries) as Record<string, string>;
     },
     enabled: uniqueAwarders.length > 0,
+    staleTime: 5 * 60 * 1000,
   });
 
   function resolveAwarderName(awarderId: string | undefined): string {
@@ -775,7 +770,7 @@ export default function ProfilePage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={metaDraft.image_url} alt="Profile" className="w-24 h-24 object-cover" />
                     ) : (
-                      <User className="w-12 h-12 text-white" />
+                    <User className="w-12 h-12 text-white" />
                     )}
                   </div>
                   {isEditing && (
@@ -1038,8 +1033,8 @@ export default function ProfilePage() {
       {lastTxId && (
         <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow">
           Submitted Tx: {lastTxId}
-        </div>
-      )}
+                      </div>
+                    )}
     </div>
   );
 }
