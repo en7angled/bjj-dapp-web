@@ -10,7 +10,7 @@ import { Users, Building2 } from 'lucide-react';
 
 export default function ProfilesPage() {
   const [filters, setFilters] = useState({
-    limit: 20,
+    limit: 10,
     offset: 0,
     profile_type: [] as string[],
     search: '',
@@ -19,6 +19,7 @@ export default function ProfilesPage() {
   const { data: profiles, isLoading } = useQuery({
     queryKey: ['profiles', filters],
     queryFn: () => BeltSystemAPI.getProfiles(filters),
+    placeholderData: (prev) => prev,
   });
 
   const { data: totalCount } = useQuery({

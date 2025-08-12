@@ -115,3 +115,12 @@ export interface BeltFrequency {
   belt: BJJBelt;
   count: number;
 }
+
+// Summary type returned by /profiles list
+export interface ProfileSummary {
+  id: string;
+  name: string;
+  description: string;
+  image_uri: string;
+  type: ProfileType;
+}
