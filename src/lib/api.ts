@@ -10,7 +10,8 @@ import type {
   AddWitAndSubmitParams,
   GYTxId,
   BeltFrequency,
-  BJJBelt
+  BJJBelt,
+  ProfileSummary
 } from '../types/api';
 
 import { API_CONFIG } from '../config/api';
@@ -361,16 +362,25 @@ export class BeltSystemAPI {
   static async getProfiles(params?: {
     limit?: number;
     offset?: number;
-    profile_type?: string[];
-    from?: string;
-    to?: string;
-  }): Promise<(PractitionerProfileInformation | OrganizationProfileInformation)[]> {
+    profile_type?: string[]; // expects values like 'Practitioner' | 'Organization'
+    name?: string;
+    description?: string;
+    order_by?: 'id' | 'name' | 'description' | 'type';
+    order?: 'asc' | 'desc';
+  }): Promise<ProfileSummary[]> {
     const searchParams = new URLSearchParams();
     if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
     if (params?.offset !== undefined) searchParams.append('offset', String(params.offset));
-    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile-type', p));
-    if (params?.from) searchParams.append('from', params.from);
-    if (params?.to) searchParams.append('to', params.to);
+    if (params?.profile_type) {
+      params.profile_type.forEach((p) => {
+        const norm = p === 'practitioner' ? 'Practitioner' : p === 'organization' ? 'Organization' : p;
+        searchParams.append('profile-type', norm);
+      });
+    }
+    if (params?.name) searchParams.append('name', params.name);
+    if (params?.description) searchParams.append('description', params.description);
+    if (params?.order_by) searchParams.append('order_by', params.order_by);
+    if (params?.order) searchParams.append('order', params.order);
     return api.get(`profiles?${searchParams.toString()}`).json();
   }
 
@@ -378,15 +388,36 @@ export class BeltSystemAPI {
     limit?: number;
     offset?: number;
     profile_type?: string[];
-    from?: string;
-    to?: string;
+    name?: string;
+    description?: string;
   }): Promise<number> {
     const searchParams = new URLSearchParams();
     if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
     if (params?.offset !== undefined) searchParams.append('offset', String(params.offset));
-    if (params?.profile_type) params.profile_type.forEach((p) => searchParams.append('profile-type', p));
-    if (params?.from) searchParams.append('from', params.from);
-    if (params?.to) searchParams.append('to', params.to);
+    if (params?.profile_type) {
+      params.profile_type.forEach((p) => {
+        const norm = p === 'practitioner' ? 'Practitioner' : p === 'organization' ? 'Organization' : p;
+        searchParams.append('profile-type', norm);
+      });
+    }
+    if (params?.name) searchParams.append('name', params.name);
+    if (params?.description) searchParams.append('description', params.description);
     return api.get(`profiles/count?${searchParams.toString()}`).json();
+  }
+
+  // Fetch all profiles by paging through results; use cautiously
+  static async getAllProfiles(params?: { profile_type?: string[] }): Promise<ProfileSummary[]> {
+    const pageSize = 200;
+    let offset = 0;
+    const all: ProfileSummary[] = [];
+    while (true) {
+      const page = await this.getProfiles({ limit: pageSize, offset, profile_type: params?.profile_type });
+      all.push(...page);
+      if (!page || page.length < pageSize) break;
+      offset += pageSize;
+      // safety cap to avoid runaway
+      if (offset > 10000) break;
+    }
+    return all;
   }
 }

@@ -18,13 +18,28 @@ export default function ProfilesPage() {
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ['profiles', filters],
-    queryFn: () => BeltSystemAPI.getProfiles(filters),
+    queryFn: () => BeltSystemAPI.getProfiles({
+      limit: filters.limit,
+      offset: filters.offset,
+      profile_type: filters.profile_type,
+      name: filters.search || undefined,
+      order_by: 'name',
+      order: 'asc',
+    }),
     placeholderData: (prev) => prev,
   });
 
   const { data: totalCount } = useQuery({
     queryKey: ['profiles-count', filters],
-    queryFn: () => BeltSystemAPI.getProfilesCount(filters),
+    queryFn: () => BeltSystemAPI.getProfilesCount({
+      limit: filters.limit,
+      offset: filters.offset,
+      profile_type: filters.profile_type,
+      name: filters.search || undefined,
+      description: filters.search || undefined,
+    }),
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleFilterChange = (newFilters: typeof filters) => {
@@ -63,9 +78,7 @@ export default function ProfilesPage() {
         {/* Results count */}
         <div className="px-4 sm:px-0 mb-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-700">
-              {isLoading ? 'Loading...' : `Showing ${profiles?.length || 0} of ${totalCount || 0} profiles`}
-            </p>
+            <p className="text-sm text-gray-700">{isLoading ? 'Loading...' : `Showing ${profiles?.length || 0} of ${totalCount || 0} profiles`}</p>
             {totalCount && totalCount > filters.limit && (
               <div className="text-sm text-gray-500">
                 Page {Math.floor(filters.offset / filters.limit) + 1} of {Math.ceil(totalCount / filters.limit)}
