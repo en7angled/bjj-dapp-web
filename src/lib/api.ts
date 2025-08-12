@@ -106,7 +106,7 @@ export class BeltSystemAPI {
     searchParams.append('order_by', orderBy);
     searchParams.append('order', order);
 
-    return api.get(`belts?${searchParams.toString()}`).json();
+    return fetch(`/api/belts?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   // Get belts count
@@ -131,12 +131,12 @@ export class BeltSystemAPI {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
 
-    return api.get(`belts/count?${searchParams.toString()}`).json();
+    return fetch(`/api/belts/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   // Get belt frequency distribution
   static async getBeltsFrequency(): Promise<BeltFrequency[]> {
-    const response = await api.get('belts/frequency').json() as [BJJBelt, number][];
+    const response = await fetch('/api/belts/frequency', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(r => r.json()) as [BJJBelt, number][];
     return response.map(([belt, count]) => ({ belt, count }));
   }
 
@@ -195,7 +195,7 @@ export class BeltSystemAPI {
     if (params?.order_by) searchParams.append('order_by', params.order_by);
     if (params?.order) searchParams.append('order', params.order);
 
-    return api.get(`promotions?${searchParams.toString()}`).json();
+    return fetch(`/api/promotions?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   // Get promotions count
@@ -220,7 +220,7 @@ export class BeltSystemAPI {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
 
-    return api.get(`promotions/count?${searchParams.toString()}`).json();
+    return fetch(`/api/promotions/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   // Build transaction
@@ -390,7 +390,7 @@ export class BeltSystemAPI {
     if (params?.description) searchParams.append('description', params.description);
     if (params?.order_by) searchParams.append('order_by', params.order_by);
     if (params?.order) searchParams.append('order', params.order);
-    return api.get(`profiles?${searchParams.toString()}`).json();
+    return fetch(`/api/profiles?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   static async getProfilesCount(params?: {
@@ -411,7 +411,7 @@ export class BeltSystemAPI {
     }
     if (params?.name) searchParams.append('name', params.name);
     if (params?.description) searchParams.append('description', params.description);
-    return api.get(`profiles/count?${searchParams.toString()}`).json();
+    return fetch(`/api/profiles/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
   }
 
   // Fetch all profiles by paging through results; use cautiously
