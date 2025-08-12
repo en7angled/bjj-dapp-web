@@ -23,7 +23,7 @@ export default function BeltsPage() {
 
   const { data: belts, isLoading } = useQuery({
     queryKey: ['belts', filters],
-    queryFn: () => BeltSystemAPI.getBelts({ ...filters, order_by: 'achievement_date', order: 'desc' }),
+    queryFn: () => BeltSystemAPI.getBelts({ ...filters, order_by: 'date', order: 'desc' }),
     placeholderData: (prev) => prev,
   });
 

@@ -36,7 +36,7 @@ export function PromotionsByBeltOverTimeChart({ months = 12 }: { months?: number
         from: new Date(start.getFullYear(), start.getMonth(), 1).toISOString(),
         to: new Date(end.getFullYear(), end.getMonth() + 1, 0).toISOString(),
         limit: 2000,
-        order_by: 'achievement_date',
+        order_by: 'date',
         order: 'asc',
       });
       return belts;

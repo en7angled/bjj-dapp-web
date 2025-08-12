@@ -84,7 +84,7 @@ export class BeltSystemAPI {
     awarded_by?: string[];
     from?: string;
       to?: string;
-      order_by?: 'achievement_date';
+      order_by?: 'id' | 'belt' | 'achieved_by' | 'awarded_by' | 'date';
       order?: 'asc' | 'desc';
   }): Promise<RankInformation[]> {
     const searchParams = new URLSearchParams();
@@ -98,7 +98,7 @@ export class BeltSystemAPI {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
     // Prefer server-side ordering for stable pagination
-    const orderBy = params?.order_by || 'achievement_date';
+    const orderBy = params?.order_by || 'date';
     const order = params?.order || 'desc';
     searchParams.append('order_by', orderBy);
     searchParams.append('order', order);
@@ -166,6 +166,8 @@ export class BeltSystemAPI {
     awarded_by?: string[];
     from?: string;
     to?: string;
+    order_by?: 'id' | 'belt' | 'achieved_by' | 'awarded_by' | 'date';
+    order?: 'asc' | 'desc';
   }): Promise<PromotionInformation[]> {
     const searchParams = new URLSearchParams();
     
@@ -177,6 +179,8 @@ export class BeltSystemAPI {
     if (params?.awarded_by) params.awarded_by.forEach(a => searchParams.append('awarded_by', a));
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
+    if (params?.order_by) searchParams.append('order_by', params.order_by);
+    if (params?.order) searchParams.append('order', params.order);
 
     return api.get(`promotions?${searchParams.toString()}`).json();
   }
@@ -261,9 +265,11 @@ export class BeltSystemAPI {
     fromDate.setDate(fromDate.getDate() - days);
     
     return this.getPromotions({
-      from: fromDate.toISOString().split('T')[0],
-      to: new Date().toISOString().split('T')[0],
-      limit: 100 // Get more recent promotions for analytics
+      from: fromDate.toISOString(),
+      to: new Date().toISOString(),
+      limit: 100, // Get more recent promotions for analytics
+      order_by: 'date',
+      order: 'desc',
     });
   }
 
@@ -296,13 +302,17 @@ export class BeltSystemAPI {
     previousMonth.setMonth(previousMonth.getMonth() - 1);
     
     const currentMonthPromotions = await this.getPromotions({
-      from: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0],
-      to: new Date().toISOString().split('T')[0]
+      from: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString(),
+      to: new Date().toISOString(),
+      order_by: 'date',
+      order: 'desc',
     });
     
     const previousMonthPromotions = await this.getPromotions({
-      from: new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 1).toISOString().split('T')[0],
-      to: new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0).toISOString().split('T')[0]
+      from: new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 1).toISOString(),
+      to: new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0).toISOString(),
+      order_by: 'date',
+      order: 'desc',
     });
     
     if (previousMonthPromotions.length === 0) {

@@ -115,7 +115,7 @@ export function AverageTimeAtBeltChart() {
     queryKey: ['avg-time-at-belt'],
     queryFn: async () => {
       // Fetch a large sample to approximate across network
-      const belts = await BeltSystemAPI.getBelts({ limit: 5000, order_by: 'achievement_date', order: 'asc' });
+      const belts = await BeltSystemAPI.getBelts({ limit: 5000, order_by: 'date', order: 'asc' });
       return belts;
     },
   });

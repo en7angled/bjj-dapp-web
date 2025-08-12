@@ -30,7 +30,7 @@ export function TopAwardersChart({ days = 90, limit = 10 }: { days?: number; lim
         from: fromDate.toISOString(),
         to: new Date().toISOString(),
         limit: 2000,
-        order_by: 'achievement_date',
+        order_by: 'date',
         order: 'desc',
       });
 
