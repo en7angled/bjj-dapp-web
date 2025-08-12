@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun, Award } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { beltColors } from '@/lib/utils';
+import type { BJJBelt } from '@/types/api';
 import { useEffect, useState } from 'react';
 
 const navigation = [
@@ -42,7 +43,9 @@ export function Navigation() {
   }, [theme, mounted]);
 
   const { user: profile, isAuthenticated } = useAuth();
-  const currentBelt = (profile && 'current_rank' in (profile as any)) ? (profile as any).current_rank?.belt : null;
+  const currentBelt: BJJBelt | null = (profile && 'current_rank' in (profile as any))
+    ? ((profile as any).current_rank?.belt as BJJBelt | undefined) ?? null
+    : null;
   const navProfileIcon = isAuthenticated && currentBelt ? (
     <span className="inline-flex items-center justify-center rounded-full w-5 h-5 mr-2" style={{ backgroundColor: beltColors[currentBelt] }}>
       <Award className="w-3.5 h-3.5" style={{ color: currentBelt === 'White' ? '#111827' : '#FFFFFF' }} />
