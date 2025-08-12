@@ -89,8 +89,8 @@ export class BeltSystemAPI {
   }): Promise<RankInformation[]> {
     const searchParams = new URLSearchParams();
     
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
     if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
     if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
     if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
@@ -119,8 +119,8 @@ export class BeltSystemAPI {
   }): Promise<number> {
     const searchParams = new URLSearchParams();
     
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
     if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
     if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
     if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));
@@ -171,8 +171,8 @@ export class BeltSystemAPI {
   }): Promise<PromotionInformation[]> {
     const searchParams = new URLSearchParams();
     
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
     if (params?.profile) params.profile.forEach(p => searchParams.append('profile', p));
     if (params?.belt) params.belt.forEach(b => searchParams.append('belt', b));
     if (params?.achieved_by) params.achieved_by.forEach(a => searchParams.append('achieved_by', a));

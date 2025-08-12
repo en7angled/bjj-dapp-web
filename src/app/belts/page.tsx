@@ -11,7 +11,7 @@ import type { BJJBelt } from '../../types/api';
 
 export default function BeltsPage() {
   const [filters, setFilters] = useState({
-    limit: 20,
+    limit: 10,
     offset: 0,
     profile: [] as string[],
     belt: [] as BJJBelt[],
