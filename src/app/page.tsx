@@ -10,7 +10,6 @@ import { PromotionsByBeltOverTimeChart } from '../components/PromotionsByBeltOve
 import { AverageTimeAtBeltChart } from '../components/AverageTimeAtBeltChart';
 import { useQuery } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
 import { 
   Trophy, 
   Award, 
@@ -25,55 +24,46 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { isAuthenticated } = useAuth();
 
   // Fetch global/community data
   const { data: beltFrequency, isLoading: frequencyLoading } = useQuery({
     queryKey: ['belt-frequency'],
     queryFn: () => BeltSystemAPI.getBeltsFrequency(),
-    enabled: isAuthenticated,
   });
 
   const { data: recentPromotions, isLoading: recentPromotionsLoading } = useQuery({
     queryKey: ['recent-promotions'],
     queryFn: () => BeltSystemAPI.getRecentPromotions(30),
-    enabled: isAuthenticated,
   });
 
   const { data: monthlyGrowth, isLoading: growthLoading } = useQuery({
     queryKey: ['monthly-growth'],
     queryFn: () => BeltSystemAPI.getMonthlyGrowthRate(),
-    enabled: isAuthenticated,
   });
 
   const { data: topAcademies, isLoading: academiesLoading } = useQuery({
     queryKey: ['top-academies'],
     queryFn: () => BeltSystemAPI.getTopPerformingAcademies(5),
-    enabled: isAuthenticated,
   });
 
   const { data: globalProfilesCount, isLoading: profilesCountLoading } = useQuery({
     queryKey: ['global-profiles-count'],
     queryFn: () => BeltSystemAPI.getProfilesCount(),
-    enabled: isAuthenticated,
   });
 
   const { data: activeProfilesCount, isLoading: activeProfilesLoading } = useQuery({
     queryKey: ['active-profiles-count'],
     queryFn: () => BeltSystemAPI.getActiveProfilesCount(),
-    enabled: isAuthenticated,
   });
 
   const { data: totalBeltsCount, isLoading: totalBeltsLoading } = useQuery({
     queryKey: ['total-belts-count'],
     queryFn: () => BeltSystemAPI.getBeltsCount({}),
-    enabled: isAuthenticated,
   });
 
   const { data: totalPromotionsCount, isLoading: totalPromotionsLoading } = useQuery({
     queryKey: ['total-promotions-count'],
     queryFn: () => BeltSystemAPI.getPromotionsCount({}),
-    enabled: isAuthenticated,
   });
 
   return (
