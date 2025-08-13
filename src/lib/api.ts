@@ -76,23 +76,53 @@ export class BeltSystemAPI {
     if (!profileId) return '';
     // Try unified cache first (either practitioner or organization)
     if (this.profileCache.size === 0) this.loadProfileCacheFromStorage();
-    const prKey = `practitioner:${profileId}`;
-    const orgKey = `organization:${profileId}`;
     const now = Date.now();
-    const prCached = this.profileCache.get(prKey);
-    if (prCached && prCached.expires > now && (prCached.data as any)?.name) return (prCached.data as any).name;
-    const orgCached = this.profileCache.get(orgKey);
-    if (orgCached && orgCached.expires > now && (orgCached.data as any)?.name) return (orgCached.data as any).name;
 
-    // Otherwise fetch whichever exists
-    try {
-      const pr = await this.getPractitionerProfile(profileId);
-      return (pr as any)?.name || profileId;
-    } catch {}
-    try {
-      const org = await this.getOrganizationProfile(profileId);
-      return (org as any)?.name || profileId;
-    } catch {}
+    const candidates = (() => {
+      const results = new Set<string>();
+      const raw = profileId;
+      results.add(raw);
+      // Add dotted variant if missing dot and looks like policy+name hex
+      if (!raw.includes('.') && raw.length > 56) {
+        results.add(`${raw.slice(0, 56)}.${raw.slice(56)}`);
+      }
+      // Adjust known legacy prefix 000de14* -> 000643b*
+      const addAdjusted = (id: string) => {
+        const parts = id.split('.');
+        if (parts.length === 2) {
+          const [policy, nameHex] = parts;
+          const lower = (nameHex || '').toLowerCase();
+          let adjusted = lower;
+          if (lower.startsWith('000de140')) adjusted = `000643b0${lower.slice(8)}`;
+          else if (lower.startsWith('000de14')) adjusted = `000643b${lower.slice(7)}`;
+          results.add(`${policy}.${adjusted}`);
+        }
+      };
+      for (const id of Array.from(results)) addAdjusted(id);
+      return Array.from(results);
+    })();
+
+    // Check cache for any candidate
+    for (const id of candidates) {
+      const prKey = `practitioner:${id}`;
+      const orgKey = `organization:${id}`;
+      const prCached = this.profileCache.get(prKey);
+      if (prCached && prCached.expires > now && (prCached.data as any)?.name) return (prCached.data as any).name;
+      const orgCached = this.profileCache.get(orgKey);
+      if (orgCached && orgCached.expires > now && (orgCached.data as any)?.name) return (orgCached.data as any).name;
+    }
+
+    // Otherwise fetch using candidates
+    for (const id of candidates) {
+      try {
+        const pr = await this.getPractitionerProfile(id);
+        return (pr as any)?.name || profileId;
+      } catch {}
+      try {
+        const org = await this.getOrganizationProfile(id);
+        return (org as any)?.name || profileId;
+      } catch {}
+    }
     return profileId;
   }
   // Get all belts with optional filtering
