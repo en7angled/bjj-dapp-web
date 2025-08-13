@@ -26,55 +26,73 @@ const api = ky.create({
 });
 
 export class BeltSystemAPI {
-  // In-memory and localStorage-backed cache for id -> profile name
-  private static profileNameCache: Map<string, string> = new Map();
-  private static storageKey = 'profileNameCacheV1';
+  // Unified in-memory and localStorage-backed cache for full profile objects
   private static profileCache = new Map<string, { data: PractitionerProfileInformation | OrganizationProfileInformation; expires: number }>();
   private static profileTtlMs = 5 * 60 * 1000; // 5 minutes
+  private static profileCacheStorageKey = 'profileCacheV1';
 
-  private static loadNameCacheFromStorage() {
+  private static loadProfileCacheFromStorage() {
     if (typeof window === 'undefined') return;
     try {
-      const raw = window.localStorage.getItem(this.storageKey);
+      const raw = window.localStorage.getItem(this.profileCacheStorageKey);
       if (!raw) return;
-      const obj = JSON.parse(raw) as Record<string, string>;
-      for (const [k, v] of Object.entries(obj)) this.profileNameCache.set(k, v);
+      const obj = JSON.parse(raw) as Record<string, { data: PractitionerProfileInformation | OrganizationProfileInformation; expires: number }>;
+      const now = Date.now();
+      for (const [key, value] of Object.entries(obj)) {
+        if (value && typeof value.expires === 'number' && value.expires > now && value.data) {
+          this.profileCache.set(key, value);
+        }
+      }
     } catch {}
   }
 
-  private static saveNameCacheToStorage() {
+  private static saveProfileCacheToStorage() {
     if (typeof window === 'undefined') return;
     try {
-      const obj = Object.fromEntries(this.profileNameCache.entries());
-      window.localStorage.setItem(this.storageKey, JSON.stringify(obj));
+      // Persist only a limited number of most recent entries to avoid exceeding localStorage limits
+      const maxEntries = 100;
+      const entries = Array.from(this.profileCache.entries())
+        .filter(([, v]) => v && typeof v.expires === 'number' && v.expires > Date.now());
+      // Sort by expires descending to keep freshest
+      entries.sort((a, b) => b[1].expires - a[1].expires);
+      const sliced = entries.slice(0, maxEntries);
+      const obj = Object.fromEntries(sliced);
+      window.localStorage.setItem(this.profileCacheStorageKey, JSON.stringify(obj));
     } catch {}
+  }
+
+  static clearCaches() {
+    // Clear in-memory caches
+    this.profileCache.clear();
+    // Clear persistent caches
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.removeItem(this.profileCacheStorageKey); } catch {}
+      // Clean up legacy name cache if it exists
+      try { window.localStorage.removeItem('profileNameCacheV1'); } catch {}
+    }
   }
 
   static async resolveProfileName(profileId: string): Promise<string> {
     if (!profileId) return '';
-    // lazy-load cache from storage once per session
-    if (this.profileNameCache.size === 0) this.loadNameCacheFromStorage();
-    const cached = this.profileNameCache.get(profileId);
-    if (cached) return cached;
+    // Try unified cache first (either practitioner or organization)
+    if (this.profileCache.size === 0) this.loadProfileCacheFromStorage();
+    const prKey = `practitioner:${profileId}`;
+    const orgKey = `organization:${profileId}`;
+    const now = Date.now();
+    const prCached = this.profileCache.get(prKey);
+    if (prCached && prCached.expires > now && (prCached.data as any)?.name) return (prCached.data as any).name;
+    const orgCached = this.profileCache.get(orgKey);
+    if (orgCached && orgCached.expires > now && (orgCached.data as any)?.name) return (orgCached.data as any).name;
+
+    // Otherwise fetch whichever exists
     try {
       const pr = await this.getPractitionerProfile(profileId);
-      if (pr?.name) {
-        this.profileNameCache.set(profileId, pr.name);
-        this.saveNameCacheToStorage();
-        return pr.name;
-      }
+      return (pr as any)?.name || profileId;
     } catch {}
     try {
       const org = await this.getOrganizationProfile(profileId);
-      if (org?.name) {
-        this.profileNameCache.set(profileId, org.name);
-        this.saveNameCacheToStorage();
-        return org.name;
-      }
+      return (org as any)?.name || profileId;
     } catch {}
-    // fallback to id if nothing resolved
-    this.profileNameCache.set(profileId, profileId);
-    this.saveNameCacheToStorage();
     return profileId;
   }
   // Get all belts with optional filtering
@@ -143,7 +161,9 @@ export class BeltSystemAPI {
   // Get practitioner profile
   static async getPractitionerProfile(profileId: string): Promise<PractitionerProfileInformation> {
     const now = Date.now();
-    const cached = this.profileCache.get(`practitioner:${profileId}`);
+    if (this.profileCache.size === 0) this.loadProfileCacheFromStorage();
+    const cacheKey = `practitioner:${profileId}`;
+    const cached = this.profileCache.get(cacheKey);
     if (cached && cached.expires > now) return cached.data as PractitionerProfileInformation;
     // Use Next.js API proxy to avoid CORS
     const resp = await fetch(`/api/practitioner/${encodeURIComponent(profileId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -151,21 +171,25 @@ export class BeltSystemAPI {
       throw new Error(await resp.text());
     }
     const data = await resp.json();
-    this.profileCache.set(`practitioner:${profileId}`, { data, expires: now + this.profileTtlMs });
+    this.profileCache.set(cacheKey, { data, expires: now + this.profileTtlMs });
+    this.saveProfileCacheToStorage();
     return data;
   }
 
   // Get organization profile
   static async getOrganizationProfile(organizationId: string): Promise<OrganizationProfileInformation> {
     const now = Date.now();
-    const cached = this.profileCache.get(`organization:${organizationId}`);
+    if (this.profileCache.size === 0) this.loadProfileCacheFromStorage();
+    const cacheKey = `organization:${organizationId}`;
+    const cached = this.profileCache.get(cacheKey);
     if (cached && cached.expires > now) return cached.data as OrganizationProfileInformation;
     const resp = await fetch(`/api/organization/${encodeURIComponent(organizationId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!resp.ok) {
       throw new Error(await resp.text());
     }
     const data = await resp.json();
-    this.profileCache.set(`organization:${organizationId}`, { data, expires: now + this.profileTtlMs });
+    this.profileCache.set(cacheKey, { data, expires: now + this.profileTtlMs });
+    this.saveProfileCacheToStorage();
     return data;
   }
 

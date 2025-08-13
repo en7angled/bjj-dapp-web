@@ -142,6 +142,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear localStorage
     localStorage.removeItem('bjj-profile-id');
     localStorage.removeItem('bjj-profile-type');
+    try { BeltSystemAPI.clearCaches(); } catch {}
     
     console.log('AuthContext: Logout successful, state cleared');
   };
