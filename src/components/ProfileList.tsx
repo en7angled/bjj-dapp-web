@@ -1,8 +1,9 @@
 'use client';
 
 import { ProfileSummary } from '../types/api';
-import { truncateAddress } from '../lib/utils';
 import { User, Building2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { ProfileName } from './ProfileName';
+import Link from 'next/link';
 
 interface ProfileListProps {
   profiles: ProfileSummary[];
@@ -59,7 +60,20 @@ export function ProfileList({
   const renderPractitionerProfile = (profile: ProfileSummary) => (
     <div className="flex items-center space-x-4">
       <div className="flex-shrink-0">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+        {profile.image_uri && profile.image_uri !== '' ? (
+          <img 
+            src={profile.image_uri} 
+            alt={`${profile.name || 'Practitioner'} profile`}
+            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              target.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <div className={`w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center ${profile.image_uri && profile.image_uri !== '' ? 'hidden' : ''}`}>
           <User className="w-6 h-6 text-white" />
         </div>
       </div>
@@ -80,12 +94,14 @@ export function ProfileList({
 
       <div className="flex-shrink-0 text-right">
         <div className="text-xs text-gray-500 font-mono">
-          {truncateAddress(profile.id, 12)}
+          <ProfileName id={profile.id} className="font-mono text-xs" />
         </div>
-        <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
-          <span>View</span>
-          <ExternalLink className="w-3 h-3" />
-        </button>
+        <Link href={`/profiles/${profile.id}`}>
+          <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
+            <span>View</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </Link>
       </div>
     </div>
   );
@@ -93,7 +109,20 @@ export function ProfileList({
   const renderOrganizationProfile = (profile: ProfileSummary) => (
     <div className="flex items-center space-x-4">
       <div className="flex-shrink-0">
-        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center">
+        {profile.image_uri && profile.image_uri !== '' ? (
+          <img 
+            src={profile.image_uri} 
+            alt={`${profile.name || 'Organization'} profile`}
+            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              target.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <div className={`w-12 h-12 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center ${profile.image_uri && profile.image_uri !== '' ? 'hidden' : ''}`}>
           <Building2 className="w-6 h-6 text-white" />
         </div>
       </div>
@@ -117,12 +146,14 @@ export function ProfileList({
 
       <div className="flex-shrink-0 text-right">
         <div className="text-xs text-gray-500 font-mono">
-          {truncateAddress(profile.id, 12)}
+          <ProfileName id={profile.id} className="font-mono text-xs" />
         </div>
-        <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
-          <span>View</span>
-          <ExternalLink className="w-3 h-3" />
-        </button>
+        <Link href={`/profiles/${profile.id}`}>
+          <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
+            <span>View</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </Link>
       </div>
     </div>
   );

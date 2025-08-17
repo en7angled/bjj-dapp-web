@@ -1,9 +1,10 @@
 'use client';
 
 import { BeltBadge } from './BeltDisplay';
-import { formatDate, truncateAddress } from '../lib/utils';
+import { formatDate } from '../lib/utils';
 import { PromotionInformation } from '../types/api';
 import { TrendingUp, User, Award, Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ProfileName } from './ProfileName';
 
 interface PromotionListProps {
   promotions: PromotionInformation[];
@@ -99,7 +100,7 @@ export function PromotionList({
                           <span className="font-medium">Achieved by:</span>
                         </div>
                         <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {truncateAddress(promotion.achieved_by_profile_id, 12)}
+                          <ProfileName id={promotion.achieved_by_profile_id} className="font-mono text-xs" />
                         </div>
                       </div>
 
@@ -109,7 +110,7 @@ export function PromotionList({
                           <span className="font-medium">Awarded by:</span>
                         </div>
                         <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {truncateAddress(promotion.awarded_by_profile_id, 12)}
+                          <ProfileName id={promotion.awarded_by_profile_id} className="font-mono text-xs" />
                         </div>
                       </div>
                     </div>
