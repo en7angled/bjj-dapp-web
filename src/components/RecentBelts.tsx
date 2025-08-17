@@ -9,6 +9,7 @@ import { Trophy, User, Calendar } from 'lucide-react';
 import { ProfileName } from './ProfileName';
 import { beltColors } from '../lib/utils';
 import { AwarderIcon } from '@/components/AwarderIcon';
+import Link from 'next/link';
 
 export function RecentBelts() {
   const { data: belts, isLoading } = useQuery({
@@ -98,9 +99,11 @@ export function RecentBelts() {
       
       {items.length >= 10 && (
         <div className="text-center pt-4 border-t border-gray-200">
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-            View all belts →
-          </button>
+          <Link href="/belts">
+            <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              View all belts →
+            </button>
+          </Link>
         </div>
       )}
     </div>
