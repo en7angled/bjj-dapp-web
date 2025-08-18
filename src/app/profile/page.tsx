@@ -5,6 +5,7 @@ import { Navigation } from '../../components/Navigation';
 import { LoginModal } from '../../components/LoginModal';
 import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { useGlobalData } from '../../contexts/DashboardDataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2, Copy, Check } from 'lucide-react';
 import { AwardBeltModal } from '../../components/AwardBeltModal';
@@ -33,7 +34,7 @@ export default function ProfilePage() {
   async function connectFirstAvailableWallet() {
     setWalletError(null);
     const available = await BrowserWallet.getAvailableWallets();
-    console.log('Available wallets:', available);
+
     if (!available || available.length === 0) {
       throw new Error('No CIP-30 wallet detected. Install Nami, Lace, Eternl, Flint, etc.');
     }
@@ -95,6 +96,8 @@ export default function ProfilePage() {
 
   const normalizedProfileId = useMemo(() => normalizeAssetId(profileId || null), [profileId]);
 
+
+
   // Copy profile ID to clipboard
   async function copyProfileIdToClipboard() {
     if (!normalizedProfileId) return;
@@ -132,7 +135,7 @@ export default function ProfilePage() {
     if (showAuthModal && modalRef.current) {
       // Ensure modal is visible and focused
       modalRef.current.focus();
-      console.log('ProfilePage: Modal should be visible, showAuthModal:', showAuthModal);
+  
     }
   }, [showAuthModal]);
 
@@ -143,10 +146,7 @@ export default function ProfilePage() {
 
   // Debug modal state changes
   useEffect(() => {
-    console.log('ProfilePage: Modal state changed, showAuthModal:', showAuthModal);
-    console.log('ProfilePage: Modal visible state:', modalVisible);
-    console.log('ProfilePage: Modal ref state:', modalStateRef.current);
-    console.log('ProfilePage: Force render count:', forceRender);
+
   }, [showAuthModal, modalVisible, forceRender]);
 
   // Prefer belts from practitioner profile (authoritative)
@@ -160,16 +160,20 @@ export default function ProfilePage() {
     return [] as typeof filteredUserBelts;
   }, [profile]);
 
-  // Fallback to API list if needed (kept for completeness)
-  const { data: userBeltsFallback } = useQuery({
-    queryKey: ['user-belts', profileId],
-    queryFn: () => BeltSystemAPI.getBelts({ achieved_by: [profileId!] }),
-    enabled: isAuthenticated && !!profileId && !isMockProfile && (!(profile && 'current_rank' in profile)),
-  });
-
+  // Use global data provider for all data
+  const { 
+    getBeltsForProfile, 
+    getPromotionsForProfile, 
+    invalidateBeltData, 
+    invalidatePromotionData, 
+    invalidateProfileData 
+  } = useGlobalData();
+  
+  const userBeltsFallback = getBeltsForProfile(normalizedProfileId || '');
+  
   const filteredUserBelts = useMemo(() => {
-    return (userBeltsFallback || []).filter(b => b.achieved_by_profile_id === profileId);
-  }, [userBeltsFallback, profileId]);
+    return userBeltsFallback.filter(b => b.achieved_by_profile_id === normalizedProfileId);
+  }, [userBeltsFallback, normalizedProfileId]);
 
   const displayedBelts = beltsFromProfile.length > 0 ? beltsFromProfile : filteredUserBelts;
 
@@ -221,15 +225,15 @@ export default function ProfilePage() {
     return latest?.awarded_by_profile_id || null;
   }, [displayedBelts]);
 
-  const { data: userPromotions, isLoading: promotionsLoading } = useQuery({
-    queryKey: ['user-promotions', profileId, awardingPractitionerId],
-    queryFn: () => BeltSystemAPI.getPromotions({ achieved_by: [profileId!], awarded_by: awardingPractitionerId ? [awardingPractitionerId] : [] }),
-    enabled: isAuthenticated && !!profileId && !isMockProfile && !!awardingPractitionerId,
-  });
+  // Use global data provider for promotions
+  const allUserPromotions = getPromotionsForProfile(profileId || '');
+  const promotionsLoading = false; // No loading state needed when using cached data
 
   const ownPendingPromotions = useMemo(() => {
-    return (userPromotions || []).filter(p => p.achieved_by_profile_id === profileId);
-  }, [userPromotions, profileId]);
+    // Show all promotions where the current user is the recipient (achieved_by_profile_id)
+    const filtered = (allUserPromotions || []).filter(p => p.achieved_by_profile_id === normalizedProfileId);
+    return filtered;
+  }, [allUserPromotions, normalizedProfileId]);
 
   function bytesToHex(bytes: Uint8Array): string {
     return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -300,9 +304,9 @@ export default function ProfilePage() {
       }
       const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: unsigned, tx_wit: signed });
       setLastTxId(res.id);
-      // refresh lists
-      queryClient.invalidateQueries({ queryKey: ['user-belts', profileId] });
-      queryClient.invalidateQueries({ queryKey: ['user-promotions', profileId] });
+      // Invalidate relevant data to refresh across all pages
+      invalidateBeltData();
+      invalidatePromotionData();
     } catch (e: any) {
       setWalletError(e?.message || 'Failed to accept promotion');
     } finally {
@@ -324,19 +328,10 @@ export default function ProfilePage() {
     enabled: isAuthenticated && !!profileId && !isMockProfile,
   });
 
-  // Fetch organization profile if user has awarded_by_profile_id
-  const { data: organizationProfile, isLoading: orgLoading } = useQuery({
-    queryKey: ['organization-profile', displayedBelts?.[0]?.awarded_by_profile_id],
-    queryFn: () => {
-      const orgId = normalizeAssetId(displayedBelts?.[0]?.awarded_by_profile_id);
-      return orgId ? BeltSystemAPI.getOrganizationProfile(orgId) : null;
-    },
-    enabled: isAuthenticated && !!displayedBelts && displayedBelts.length > 0 && !!displayedBelts[0]?.awarded_by_profile_id && !isMockProfile,
-  });
+  // Removed organization profile query as requested
 
   const handleLogin = async () => {
-    console.log('ProfilePage: Login button clicked!');
-    console.log('ProfilePage: Current auth state before login:', { isAuthenticated, profileId, profileType });
+
     
     // Use a callback to ensure state is set properly
     setLoginMode('signin');
@@ -348,14 +343,9 @@ export default function ProfilePage() {
     
     // Force a re-render
     setForceRender(prev => prev + 1);
-    
-    console.log('ProfilePage: Auth modal should be visible now, showAuthModal:', true);
-    console.log('ProfilePage: Modal ref state after setting:', modalStateRef.current);
   };
 
   const handleSignUp = async () => {
-    console.log('ProfilePage: Sign up button clicked!');
-    console.log('ProfilePage: Current auth state before signup:', { isAuthenticated, profileId, profileType });
     
     // Use a callback to ensure state is set properly
     setLoginMode('create');
@@ -367,40 +357,28 @@ export default function ProfilePage() {
     
     // Force a re-render
     setForceRender(prev => prev + 1);
-    
-    console.log('ProfilePage: Auth modal should be visible now, showAuthModal:', true);
-    console.log('ProfilePage: Modal ref state after setting:', modalStateRef.current);
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('ProfilePage: Auth form submitted, mode:', loginMode);
-    console.log('ProfilePage: Form data:', authForm);
     
     setIsAuthenticating(true);
     
     try {
       if (loginMode === 'signin') {
-        console.log('ProfilePage: Processing sign in...');
         // Sign in existing user - for demo purposes, create a mock profile
         const mockProfileId = `user-${Date.now()}`;
         const mockProfileType = 'Practitioner' as const;
-        console.log('ProfilePage: Calling login with:', { mockProfileId, mockProfileType });
         await login(mockProfileId, mockProfileType);
-        console.log('ProfilePage: Login successful, closing modal');
         closeAuthModal();
       } else {
-        console.log('ProfilePage: Processing create...');
         // Create new user profile
         if (!authForm.name.trim()) {
-          console.log('ProfilePage: Name is required, aborting');
           return;
         }
         
         // For demo purposes, we'll simulate a successful profile creation
         // In a real app, you would build and submit a blockchain transaction
-        
-        console.log('ProfilePage: Creating new profile:', authForm);
         
         // Simulate transaction building delay
         setTransactionStatus('building');
@@ -413,10 +391,8 @@ export default function ProfilePage() {
         // Sign in the newly created user
         const newProfileId = `new-user-${Date.now()}`;
         const newProfileType = authForm.profileType;
-        console.log('ProfilePage: Calling login with new profile:', { newProfileId, newProfileType });
         await login(newProfileId, newProfileType);
         
-        console.log('ProfilePage: Profile creation and login successful, closing modal');
         closeAuthModal();
         setTransactionStatus('idle');
       }
@@ -429,14 +405,10 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    console.log('ProfilePage: Logout clicked, calling logout function');
-    console.log('ProfilePage: Current auth state before logout:', { isAuthenticated, profileId, profileType });
     logout();
-    console.log('ProfilePage: Logout function called, checking if user is still authenticated...');
     // Force clear localStorage as well to ensure complete logout
     localStorage.removeItem('bjj-profile-id');
     localStorage.removeItem('bjj-profile-type');
-    console.log('ProfilePage: LocalStorage cleared');
   };
 
   // Removed in-auth profile creation flow (moved to login modal)
@@ -536,6 +508,8 @@ export default function ProfilePage() {
       }
       const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: unsigned, tx_wit: signed });
       setLastTxId(res.id);
+      // Invalidate profile data to refresh across all pages
+      invalidateProfileData();
     } catch (e: any) {
       setWalletError(e?.message || 'Failed to sync image on-chain');
     }
@@ -578,9 +552,7 @@ export default function ProfilePage() {
   }
 
   if (!isAuthenticated) {
-    console.log('ProfilePage: User is NOT authenticated, showing welcome screen');
-    console.log('ProfilePage: Current auth state:', { isAuthenticated, profileId, profileType });
-    console.log('ProfilePage: Profile loading state:', profileLoading);
+
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
@@ -693,7 +665,6 @@ export default function ProfilePage() {
   }
 
   if (profileLoading) {
-    console.log('ProfilePage: Profile is loading, showing loading state');
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
@@ -966,21 +937,7 @@ export default function ProfilePage() {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Lineage & Academy</h3>
                 
                 <div className="space-y-4">
-                  {/* Academy Information */}
-                  {organizationProfile && (
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                          <Building2 className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-gray-900">Your Academy</h4>
-                          <p className="text-sm text-gray-600">{organizationProfile.name}</p>
-                          <p className="text-xs text-gray-500">{organizationProfile.description}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* Academy Information - Removed organization profile display */}
                   
                   <div className="flex items-center space-x-4">
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
@@ -1001,7 +958,7 @@ export default function ProfilePage() {
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-gray-900">Academy</h4>
                       <p className="text-sm text-gray-600">
-                        {organizationProfile ? organizationProfile.name : 'Not specified'}
+                        Not specified
                       </p>
                     </div>
                   </div>

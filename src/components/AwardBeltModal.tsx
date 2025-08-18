@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import type { BJJBelt, ProfileType } from '../types/api';
 import { BeltSystemAPI } from '../lib/api';
+import { useGlobalData } from '../contexts/DashboardDataContext';
 import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
 import { Address } from '@emurgo/cardano-serialization-lib-browser';
 import { Key, Zap, User, Award, X } from 'lucide-react';
@@ -16,6 +17,7 @@ type AwardBeltModalProps = {
 };
 
 export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess }: AwardBeltModalProps) {
+  const { invalidateBeltData, invalidatePromotionData } = useGlobalData();
   const [recipientId, setRecipientId] = useState('');
   const [belt, setBelt] = useState<BJJBelt>('White');
   const [achievementDate, setAchievementDate] = useState<string>(() => new Date().toISOString().replace(/\..+Z$/, 'Z'));
@@ -90,13 +92,13 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
       const usedFinal = Array.from(new Set<string>([...usedList, changeInfo.hex])).filter(Boolean);
       if (usedFinal.length < 1) throw new Error('No valid used addresses');
 
-      const action = {
+      const action: { tag: 'PromoteProfileAction'; promoted_profile_id: string; promoted_by_profile_id: string; achievement_date: string; promoted_belt: BJJBelt } = {
         tag: 'PromoteProfileAction',
         promoted_profile_id: recipientId.trim(),
         promoted_by_profile_id: promotedByProfileId,
         achievement_date: achievementDate,
         promoted_belt: belt,
-      } as const;
+      };
 
       const interaction = {
         action,
@@ -107,8 +109,10 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
         recipient: changeInfo.hex,
       } as const;
 
+      console.log('PromoteProfileAction payload:', JSON.stringify(interaction, null, 2));
+
       // Request unsigned tx from backend using the typed interaction
-      const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
+      const unsigned = await BeltSystemAPI.buildTransaction(interaction);
       setTxUnsigned(unsigned);
       setTxStatus('ready');
     } catch (err: any) {
@@ -140,6 +144,9 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
       const res = await BeltSystemAPI.submitTransaction({ tx_unsigned: txUnsigned, tx_wit: signed });
       setTxId(res.id);
       setTxStatus('success');
+      // Invalidate relevant data to refresh across all pages
+      invalidateBeltData();
+      invalidatePromotionData();
       // Inform parent and close modal
       try { onSuccess && onSuccess(res.id); } catch {}
       onClose();
@@ -185,7 +192,15 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Achievement Date</label>
-              <input type="datetime-local" value={achievementDate.replace('Z','')} onChange={(e)=> setAchievementDate(new Date(e.target.value).toISOString().replace(/\..+Z$/, 'Z'))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-700" />
+              <input type="datetime-local" value={achievementDate.replace('Z','')} onChange={(e)=> {
+                const value = e.target.value;
+                if (value) {
+                  const date = new Date(value);
+                  if (!isNaN(date.getTime())) {
+                    setAchievementDate(date.toISOString().replace(/\..+Z$/, 'Z'));
+                  }
+                }
+              }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-700" />
             </div>
             <div className="flex items-center justify-between">
               <button type="button" onClick={() => ensureWallet().catch(err=>setError(err.message))} className="px-3 py-2 border rounded-md text-sm">{wallet ? 'Wallet Connected' : 'Connect Wallet'}</button>

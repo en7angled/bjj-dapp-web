@@ -3,10 +3,8 @@ import type {
   RankInformation,
   PromotionInformation,
   PractitionerProfileInformation,
-  OrganizationProfileInformation,
   ProfileData,
   Interaction,
-  DiscriminatedInteraction,
   AddWitAndSubmitParams,
   GYTxId,
   BeltFrequency,
@@ -27,7 +25,7 @@ const api = ky.create({
 
 export class BeltSystemAPI {
   // Unified in-memory and localStorage-backed cache for full profile objects
-  private static profileCache = new Map<string, { data: PractitionerProfileInformation | OrganizationProfileInformation; expires: number }>();
+  private static profileCache = new Map<string, { data: PractitionerProfileInformation; expires: number }>();
   private static profileTtlMs = 5 * 60 * 1000; // 5 minutes
   private static profileCacheStorageKey = 'profileCacheV1';
 
@@ -36,7 +34,7 @@ export class BeltSystemAPI {
     try {
       const raw = window.localStorage.getItem(this.profileCacheStorageKey);
       if (!raw) return;
-      const obj = JSON.parse(raw) as Record<string, { data: PractitionerProfileInformation | OrganizationProfileInformation; expires: number }>;
+      const obj = JSON.parse(raw) as Record<string, { data: PractitionerProfileInformation; expires: number }>;
       const now = Date.now();
       for (const [key, value] of Object.entries(obj)) {
         if (value && typeof value.expires === 'number' && value.expires > now && value.data) {
@@ -202,22 +200,7 @@ export class BeltSystemAPI {
     return data;
   }
 
-  // Get organization profile
-  static async getOrganizationProfile(organizationId: string): Promise<OrganizationProfileInformation> {
-    const now = Date.now();
-    if (this.profileCache.size === 0) this.loadProfileCacheFromStorage();
-    const cacheKey = `organization:${organizationId}`;
-    const cached = this.profileCache.get(cacheKey);
-    if (cached && cached.expires > now) return cached.data as OrganizationProfileInformation;
-    const resp = await fetch(`/api/organization/${encodeURIComponent(organizationId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!resp.ok) {
-      throw new Error(await resp.text());
-    }
-    const data = await resp.json();
-    this.profileCache.set(cacheKey, { data, expires: now + this.profileTtlMs });
-    this.saveProfileCacheToStorage();
-    return data;
-  }
+  // Removed getOrganizationProfile method as requested
 
   // Get pending promotions
   static async getPromotions(params?: {
@@ -274,7 +257,7 @@ export class BeltSystemAPI {
   }
 
   // Build transaction
-  static async buildTransaction(interaction: Interaction | DiscriminatedInteraction): Promise<string> {
+  static async buildTransaction(interaction: Interaction): Promise<string> {
     // Route through Next.js API to avoid CORS and keep credentials server-side
     const resp = await fetch('/api/build-tx', {
       method: 'POST',

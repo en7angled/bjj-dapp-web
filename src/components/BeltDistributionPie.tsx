@@ -1,7 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { BeltSystemAPI } from '../lib/api';
+import { useDashboardData } from '../contexts/DashboardDataContext';
 import { beltColors, beltOrder, getBeltDisplayName } from '../lib/utils';
 import type { BJJBelt, BeltFrequency } from '../types/api';
 import {
@@ -17,10 +16,8 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 const CORE_BELTS: BJJBelt[] = ['White', 'Blue', 'Purple', 'Brown', 'Black'];
 
 export function BeltDistributionPie() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['belts-frequency-pie'],
-    queryFn: () => BeltSystemAPI.getBeltsFrequency(),
-  });
+  const { data: dashboardData, isLoading } = useDashboardData();
+  const data = dashboardData?.beltFrequency;
 
   if (isLoading) {
     return (

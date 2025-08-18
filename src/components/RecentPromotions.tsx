@@ -1,7 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { BeltSystemAPI } from '../lib/api';
+import { useDashboardData } from '../contexts/DashboardDataContext';
 import { BeltBadge } from './BeltDisplay';
 import { formatDateShort } from '../lib/utils';
 import { Clock, User, Award } from 'lucide-react';
@@ -11,10 +10,8 @@ import { AwarderIcon } from '@/components/AwarderIcon';
 import { useMemo } from 'react';
 
 export function RecentPromotions() {
-  const { data: promotions, isLoading } = useQuery({
-    queryKey: ['recent-promotions'],
-    queryFn: () => BeltSystemAPI.getPromotions({ limit: 5 }),
-  });
+  const { data: dashboardData, isLoading } = useDashboardData();
+  const promotions = dashboardData?.recentPromotions?.slice(0, 5);
 
 
   if (isLoading) {

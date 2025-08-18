@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useGlobalData } from '../contexts/DashboardDataContext';
 import { X, User, Building, Key, AlertCircle, Zap, Image as ImageIcon } from 'lucide-react';
 import type { BJJBelt, ProfileType } from '../types/api';
 import { BeltSystemAPI } from '../lib/api';
@@ -42,6 +43,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   const [lastStatus, setLastStatus] = useState<number | null>(null);
   
   const { login } = useAuth();
+  const { invalidateProfileData } = useGlobalData();
   const [wallet, setWallet] = useState<BrowserWallet | null>(null);
   const [wallets, setWallets] = useState<{ name: string }[]>([]);
 
@@ -244,7 +246,12 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       }
 
       // Convert user-selected achievement date to ISO8601 format without milliseconds
-      const creationDate = new Date(createAchievementDate).toISOString().replace(/\.\d{3}Z$/, 'Z');
+      const date = new Date(createAchievementDate);
+      if (isNaN(date.getTime())) {
+        setError('Invalid achievement date');
+        return;
+      }
+      const creationDate = date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
       const fullName = `${firstName.trim()}${middleName.trim() ? ' ' + middleName.trim() : ''} ${lastName.trim()}`;
       const interaction = {
@@ -413,6 +420,8 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
         
         if (confirmed) {
           setTxStatus('success');
+          // Invalidate profile data to refresh counts
+          invalidateProfileData();
           // Auto-close modal after successful confirmation
           setTimeout(() => {
             onClose();

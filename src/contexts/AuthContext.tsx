@@ -5,19 +5,18 @@ import { BeltSystemAPI } from '../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import type { 
   PractitionerProfileInformation, 
-  OrganizationProfileInformation,
   ProfileType 
 } from '../types/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: PractitionerProfileInformation | OrganizationProfileInformation | null;
+  user: PractitionerProfileInformation | null;
   profileId: string | null;
   profileType: ProfileType | null;
   isLoading: boolean;
   login: (profileId: string, profileType: ProfileType) => Promise<void>;
   logout: () => void;
-  updateProfile: (profileData: Partial<PractitionerProfileInformation | OrganizationProfileInformation>) => Promise<void>;
+  updateProfile: (profileData: Partial<PractitionerProfileInformation>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // Fetch user profile data when authenticated (use normalized dotted id and adjusted prefix)
-  const { data: user = null, isLoading } = useQuery<PractitionerProfileInformation | OrganizationProfileInformation | null>({
+  const { data: user = null, isLoading } = useQuery<PractitionerProfileInformation | null>({
     queryKey: ['profile', profileId, profileType],
     queryFn: async () => {
       if (!profileId || !profileType) {
@@ -92,10 +91,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       let lastErr: unknown = null;
       for (const id of candidates) {
         try {
-          const res: PractitionerProfileInformation | OrganizationProfileInformation = profileType === 'Practitioner'
-            ? await BeltSystemAPI.getPractitionerProfile(id)
-            : await BeltSystemAPI.getOrganizationProfile(id);
-          return res as PractitionerProfileInformation | OrganizationProfileInformation;
+          const res: PractitionerProfileInformation = await BeltSystemAPI.getPractitionerProfile(id);
+          return res as PractitionerProfileInformation;
         } catch (e) {
           lastErr = e;
         }
@@ -147,7 +144,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log('AuthContext: Logout successful, state cleared');
   };
 
-  const updateProfile = async (profileData: Partial<PractitionerProfileInformation | OrganizationProfileInformation>) => {
+  const updateProfile = async (profileData: Partial<PractitionerProfileInformation>) => {
     // In a real app, you would make an API call to update the profile
     // For now, we'll just log the update
     console.log('Profile update requested:', profileData);

@@ -33,15 +33,11 @@ export default function PublicProfilePage() {
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['public-profile', profileId],
     queryFn: async () => {
-      // Try to fetch as practitioner first, then as organization
+      // Only fetch as practitioner profile
       try {
         return await BeltSystemAPI.getPractitionerProfile(profileId);
       } catch {
-        try {
-          return await BeltSystemAPI.getOrganizationProfile(profileId);
-        } catch {
-          throw new Error('Profile not found');
-        }
+        throw new Error('Profile not found');
       }
     },
     enabled: Boolean(profileId),
