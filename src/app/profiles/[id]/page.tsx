@@ -2,18 +2,32 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Navigation } from '../../../components/Navigation';
 import { BeltSystemAPI } from '../../../lib/api';
 import { ProfileName } from '../../../components/ProfileName';
 import { BeltBadge } from '../../../components/BeltDisplay';
 import { formatDate } from '../../../lib/utils';
-import { User, Building2, Trophy, Calendar, MapPin, Phone, Mail, Globe, Shield } from 'lucide-react';
+import { User, Building2, Trophy, Calendar, MapPin, Phone, Mail, Globe, Shield, Copy, Check } from 'lucide-react';
 import { beltColors } from '../../../lib/utils';
 import type { BJJBelt } from '../../../types/api';
 
 export default function PublicProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
+  const [copiedProfileId, setCopiedProfileId] = useState(false);
+
+  // Copy profile ID to clipboard
+  async function copyProfileIdToClipboard() {
+    if (!profileId) return;
+    try {
+      await navigator.clipboard.writeText(profileId);
+      setCopiedProfileId(true);
+      setTimeout(() => setCopiedProfileId(false), 2000);
+    } catch {
+      // ignore
+    }
+  }
 
   // Fetch profile data
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -162,9 +176,26 @@ export default function PublicProfilePage() {
                   )}
 
                   {/* Profile ID */}
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <span className="font-medium">Profile ID:</span>
-                    <ProfileName id={profile.id} className="font-mono" />
+                  <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profile ID</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">
+                          {profileId}
+                        </p>
+                      </div>
+                      <button
+                        onClick={copyProfileIdToClipboard}
+                        className="ml-2 inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                        title="Copy Profile ID"
+                      >
+                        {copiedProfileId ? (
+                          <Check className="w-3 h-3 text-green-600" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

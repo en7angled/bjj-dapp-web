@@ -6,7 +6,7 @@ import { LoginModal } from '../../components/LoginModal';
 import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2 } from 'lucide-react';
+import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2, Copy, Check } from 'lucide-react';
 import { AwardBeltModal } from '../../components/AwardBeltModal';
 import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
 import { Address, Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [showAwardModal, setShowAwardModal] = useState(false);
   const [lastTxId, setLastTxId] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [copiedProfileId, setCopiedProfileId] = useState(false);
   const queryClient = useQueryClient();
 
   async function connectFirstAvailableWallet() {
@@ -93,6 +94,18 @@ export default function ProfilePage() {
   } = useAuth();
 
   const normalizedProfileId = useMemo(() => normalizeAssetId(profileId || null), [profileId]);
+
+  // Copy profile ID to clipboard
+  async function copyProfileIdToClipboard() {
+    if (!normalizedProfileId) return;
+    try {
+      await navigator.clipboard.writeText(normalizedProfileId);
+      setCopiedProfileId(true);
+      setTimeout(() => setCopiedProfileId(false), 2000);
+    } catch {
+      // ignore
+    }
+  }
 
   // Normalize an asset id to dotted format and adjust known prefix if required
   function normalizeAssetId(rawId: string | undefined | null): string | null {
@@ -805,6 +818,29 @@ export default function ProfilePage() {
                   )}
                   <h3 className="text-lg font-medium text-gray-900">{profile.name}</h3>
                   <p className="text-sm text-gray-500">{profile.description}</p>
+                  
+                  {/* Profile ID with Copy Button */}
+                  <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profile ID</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">
+                          {normalizedProfileId}
+                        </p>
+                      </div>
+                      <button
+                        onClick={copyProfileIdToClipboard}
+                        className="ml-2 inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                        title="Copy Profile ID"
+                      >
+                        {copiedProfileId ? (
+                          <Check className="w-3 h-3 text-green-600" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Current Rank */}
