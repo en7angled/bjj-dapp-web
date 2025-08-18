@@ -6,6 +6,7 @@ import { API_CONFIG } from '../../../config/api';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log('build-tx request body:', JSON.stringify(body, null, 2));
     const auth = Buffer.from(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`).toString('base64');
 
     const res = await fetch(`${API_CONFIG.BASE_URL}/build-tx`, {
@@ -19,12 +20,15 @@ export async function POST(req: Request) {
     });
 
     const text = await res.text();
+    console.log('build-tx response status:', res.status);
+    console.log('build-tx response text:', text);
     // Mirror backend status and content-type to the client
     return new NextResponse(text, {
       status: res.status,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
+    console.error('build-tx error:', e);
     return new NextResponse(e?.message || 'Proxy error', { status: 500 });
   }
 }

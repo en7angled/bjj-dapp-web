@@ -90,13 +90,12 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
       const usedFinal = Array.from(new Set<string>([...usedList, changeInfo.hex])).filter(Boolean);
       if (usedFinal.length < 1) throw new Error('No valid used addresses');
 
-      // Backend expects PromoteProfileAction fields at the top-level (no contents wrapper)
       const action = {
         tag: 'PromoteProfileAction',
-        promotedProfileId: recipientId.trim(),
-        promotedByProfileId: promotedByProfileId,
-        achievementDate: achievementDate,
-        promotedBelt: belt,
+        promoted_profile_id: recipientId.trim(),
+        promoted_by_profile_id: promotedByProfileId,
+        achievement_date: achievementDate,
+        promoted_belt: belt,
       } as const;
 
       const interaction = {
@@ -105,6 +104,7 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
           usedAddresses: usedFinal,
           changeAddress: changeInfo.hex,
         },
+        recipient: changeInfo.hex,
       } as const;
 
       // Request unsigned tx from backend using the typed interaction

@@ -279,12 +279,13 @@ export default function ProfilePage() {
       const interaction = {
         action: {
           tag: 'AcceptPromotionAction',
-          promotionId,
+          promotion_id: promotionId,
         },
         userAddresses: {
           usedAddresses: usedHex,
           changeAddress: changeHex,
         },
+        recipient: changeHex,
       } as const;
 
       const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
@@ -514,13 +515,14 @@ export default function ProfilePage() {
       const interaction = {
         action: {
           tag: 'UpdateProfileImageAction',
-          profileId: normalizeAssetId(profileId!)!,
-          imageURI: absoluteUrl,
+          profile_id: normalizeAssetId(profileId!)!,
+          image_uri: absoluteUrl,
         },
         userAddresses: {
           usedAddresses: usedHex,
           changeAddress: changeHex,
         },
+        recipient: changeHex,
       } as const;
 
       const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);

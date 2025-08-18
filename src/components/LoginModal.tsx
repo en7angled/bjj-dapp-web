@@ -29,6 +29,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   const [createDescription, setCreateDescription] = useState('');
   const [createImageUri, setCreateImageUri] = useState('');
   const [createBelt, setCreateBelt] = useState<BJJBelt>('White');
+  const [createAchievementDate, setCreateAchievementDate] = useState<string>(new Date().toISOString().slice(0, 16));
   const [usedAddresses, setUsedAddresses] = useState<string>('');
   const [changeAddress, setChangeAddress] = useState<string>('');
   const [txStatus, setTxStatus] = useState<'idle' | 'building' | 'ready' | 'submitting' | 'confirming' | 'success' | 'error'>('idle');
@@ -153,6 +154,10 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       setError('Addresses are required to build the transaction');
       return;
     }
+    if (!createAchievementDate) {
+      setError('Achievement date is required');
+      return;
+    }
     setIsLoading(true);
     setTxStatus('building');
     try {
@@ -238,28 +243,27 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
         return;
       }
 
-      // ISO8601 without milliseconds (some servers enforce a stricter format)
-      // Use a creation date 10 seconds in the past to give more validity window
-      const creationDate = new Date(Date.now() - 10000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+      // Convert user-selected achievement date to ISO8601 format without milliseconds
+      const creationDate = new Date(createAchievementDate).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
       const fullName = `${firstName.trim()}${middleName.trim() ? ' ' + middleName.trim() : ''} ${lastName.trim()}`;
       const interaction = {
         action: {
           tag: 'CreateProfileWithRankAction',
-          profileData: {
+          profile_data: {
             name: fullName,
             description: createDescription,
             image_uri: createImageUri || ''
           },
-          profileType,
-          creationDate,
+          profile_type: profileType,
+          creation_date: creationDate,
           belt: profileType === 'Practitioner' ? createBelt : 'White'
         },
         userAddresses: {
           usedAddresses: usedFinal,
           changeAddress: changeInfo.hex
         },
-        // Optionally include a recipient; leave undefined per API unless needed
+        recipient: changeInfo.hex // Required according to backend schema
       } as const;
 
       console.debug('Building interaction', interaction);
@@ -294,6 +298,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       setCreateDescription('');
       setCreateImageUri('');
       setCreateBelt('White');
+      setCreateAchievementDate(new Date().toISOString().slice(0, 16));
       setUsedAddresses('');
       setChangeAddress('');
       setTxStatus('idle');
@@ -545,6 +550,17 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                   </div>
                 )}
                 <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Achievement Date *</label>
+                  <input 
+                    type="datetime-local" 
+                    value={createAchievementDate} 
+                    onChange={(e) => setCreateAchievementDate(e.target.value)} 
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" 
+                  />
+                  <p className="text-xs text-gray-600 mt-1">When did you achieve your current rank?</p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Image URI (optional)</label>
                   <div className="flex items-center space-x-2">
                     <ImageIcon className="w-4 h-4 text-gray-400" />
@@ -634,7 +650,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                   {isLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Signing In...</>) : (<><Key className="w-4 h-4 mr-2" /> Sign In</>)}
                 </button>
               ) : (
-                <button type="submit" disabled={isLoading || !firstName.trim() || !lastName.trim()} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                <button type="submit" disabled={isLoading || !firstName.trim() || !lastName.trim() || !createAchievementDate} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
                   {isLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Building...</>) : (<><Key className="w-4 h-4 mr-2" /> Build Transaction</>)}
                 </button>
               )}

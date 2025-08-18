@@ -49,57 +49,19 @@ export interface UserAddresses {
   reservedCollateral?: string;
 }
 
-export interface ProfileActionType {
-  CreateProfileWithRankAction?: {
-    profileData: ProfileData;
-    profileType: ProfileType;
-    creationDate: string;
-    belt: BJJBelt;
-  };
-  InitProfileAction?: {
-    profileData: ProfileData;
-    profileType: ProfileType;
-    creationDate: string;
-  };
-  PromoteProfileAction?: {
-    promotedProfileId: string;
-    promotedByProfileId: string;
-    achievementDate: string;
-    promotedBelt: BJJBelt;
-  };
-  AcceptPromotionAction?: {
-    promotionId: string;
-  };
-  UpdateProfileImageAction?: {
-    profileId: string;
-    imageURI: string;
-  };
-  DeleteProfileAction?: {
-    profileId: string;
-  };
-}
-
-// Discriminated union shape accepted by backend, used only for request payloads
-export type DiscriminatedProfileAction =
-  | { tag: 'CreateProfileWithRankAction'; contents: { profileData: ProfileData; profileType: ProfileType; creationDate: string; belt: BJJBelt } }
-  // Some servers accept tag with fields directly (no contents)
-  | { tag: 'CreateProfileWithRankAction'; profileData: ProfileData; profileType: ProfileType; creationDate: string; belt: BJJBelt }
-  | { tag: 'InitProfileAction'; contents: { profileData: ProfileData; profileType: ProfileType; creationDate: string } }
-  | { tag: 'UpdateProfileImageAction'; contents: { profileId: string; imageURI: string } }
-  | { tag: 'DeleteProfileAction'; contents: { profileId: string } }
-  | { tag: 'PromoteProfileAction'; contents: { promotedProfileId: string; promotedByProfileId: string; achievementDate: string; promotedBelt: BJJBelt } }
-  | { tag: 'AcceptPromotionAction'; contents: { promotionId: string } };
-
-export interface DiscriminatedInteraction {
-  action: DiscriminatedProfileAction;
-  userAddresses: UserAddresses;
-  recipient?: string;
-}
+// Backend expects tag + direct fields format (no contents wrapper)
+export type ProfileActionType =
+  | { tag: 'CreateProfileWithRankAction'; profile_data: ProfileData; profile_type: ProfileType; creation_date: string; belt: BJJBelt }
+  | { tag: 'InitProfileAction'; profile_data: ProfileData; profile_type: ProfileType; creation_date: string }
+  | { tag: 'UpdateProfileImageAction'; profile_id: string; image_uri: string }
+  | { tag: 'DeleteProfileAction'; profileIdentifier: string }
+  | { tag: 'PromoteProfileAction'; promoted_profile_id: string; promoted_by_profile_id: string; achievement_date: string; promoted_belt: BJJBelt }
+  | { tag: 'AcceptPromotionAction'; promotion_id: string };
 
 export interface Interaction {
   action: ProfileActionType;
   userAddresses: UserAddresses;
-  recipient?: string;
+  recipient: string; // Required according to backend schema
 }
 
 export interface AddWitAndSubmitParams {
