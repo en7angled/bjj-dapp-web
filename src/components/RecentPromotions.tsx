@@ -31,9 +31,9 @@ export function RecentPromotions() {
     return (
       <div className="text-center py-8">
         <Clock className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No promotions</h3>
+        <h3 className="mt-2 text-sm font-medium text-gray-900">No pending promotions</h3>
         <p className="mt-1 text-sm text-gray-500">
-          No pending promotions at the moment.
+          All promotions have been processed or there are no pending requests.
         </p>
       </div>
     );
@@ -58,6 +58,9 @@ export function RecentPromotions() {
               <span className="text-xs text-gray-500">
                 {formatDateShort(promotion.achievement_date)}
               </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Pending
+              </span>
             </div>
             
             <div className="text-sm text-gray-900 space-y-1">
@@ -79,9 +82,9 @@ export function RecentPromotions() {
       
       {promotions.length >= 5 && (
         <div className="text-center pt-2">
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+          <a href="/promotions" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
             View all promotions →
-          </button>
+          </a>
         </div>
       )}
     </div>

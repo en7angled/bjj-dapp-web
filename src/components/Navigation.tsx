@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun, Award } from 'lucide-react';
+import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun, Award, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { beltColors } from '@/lib/utils';
 import type { BJJBelt } from '@/types/api';
@@ -11,8 +11,8 @@ import { useEffect, useState } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Belts', href: '/belts', icon: Trophy },
+  { name: 'Promotions', href: '/promotions', icon: Clock },
   { name: 'Profiles', href: '/profiles', icon: Users },
-  // Promotions and Analytics removed; handled within other pages
   { name: 'My Profile', href: '/profile', icon: User },
 ];
 
@@ -56,7 +56,7 @@ export function Navigation() {
   );
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 dark:bg-gray-900">
+    <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -77,10 +77,10 @@ export function Navigation() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? 'border-blue-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      ? 'border-blue-500 text-gray-900 dark:text-white'
+                      : 'border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
                   {item.name === 'My Profile' ? navProfileIcon : <item.icon className="w-4 h-4 mr-2" />}
@@ -91,7 +91,7 @@ export function Navigation() {
             {mounted && (
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="ml-4 inline-flex items-center px-2 py-1 border rounded text-sm text-gray-600 hover:text-gray-900"
+                className="ml-4 inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 aria-label="Toggle theme"
               >
                 {theme === 'dark' ? (<Sun className="w-4 h-4" />) : (<Moon className="w-4 h-4" />)}
@@ -105,7 +105,7 @@ export function Navigation() {
               onClick={() => setMobileOpen((v) => !v)}
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors"
             >
               <span className="sr-only">{mobileOpen ? 'Close main menu' : 'Open main menu'}</span>
               {mobileOpen ? (
@@ -124,7 +124,7 @@ export function Navigation() {
       {/* Mobile drawer */}
       {/* Backdrop */}
       <div
-        className={`sm:hidden fixed inset-0 z-40 bg-black/30 transition-opacity ${mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`sm:hidden fixed inset-0 z-40 bg-black/30 dark:bg-black/50 transition-opacity ${mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         aria-hidden={!mobileOpen}
         onClick={() => setMobileOpen(false)}
       />

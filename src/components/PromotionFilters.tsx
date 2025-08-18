@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { beltOrder } from '../lib/utils';
 import { BJJBelt } from '../types/api';
 import { Filter, X, Calendar } from 'lucide-react';
+import { ProfileSearch } from './ProfileSearch';
 
 interface PromotionFiltersProps {
   filters: {
@@ -137,52 +138,31 @@ export function PromotionFilters({ filters, onFiltersChange }: PromotionFiltersP
           {/* Profile filters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Profile ID
-              </label>
-              <input
-                type="text"
-                placeholder="Enter profile ID"
-                value={filters.profile.join(', ')}
-                onChange={(e) => updateFilter('profile', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              <ProfileSearch
+                value={filters.profile}
+                onChange={(profileIds) => updateFilter('profile', profileIds)}
+                placeholder="Search profiles by name..."
+                label="Profile"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Separate multiple IDs with commas
-              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Achieved By Profile
-              </label>
-              <input
-                type="text"
-                placeholder="Enter profile ID"
-                value={filters.achieved_by.join(', ')}
-                onChange={(e) => updateFilter('achieved_by', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              <ProfileSearch
+                value={filters.achieved_by}
+                onChange={(profileIds) => updateFilter('achieved_by', profileIds)}
+                placeholder="Search profiles by name..."
+                label="Achieved By Profile"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Separate multiple IDs with commas
-              </p>
             </div>
           </div>
 
           {/* Awarded by filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Awarded By Profile
-            </label>
-            <input
-              type="text"
-              placeholder="Enter profile ID"
-              value={filters.awarded_by.join(', ')}
-              onChange={(e) => updateFilter('awarded_by', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            <ProfileSearch
+              value={filters.awarded_by}
+              onChange={(profileIds) => updateFilter('awarded_by', profileIds)}
+              placeholder="Search profiles by name..."
+              label="Awarded By Profile"
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Separate multiple IDs with commas
-            </p>
           </div>
 
           {/* Results per page */}
