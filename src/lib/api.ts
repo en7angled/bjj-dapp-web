@@ -118,10 +118,6 @@ export class BeltSystemAPI {
         const pr = await this.getPractitionerProfile(id);
         return (pr as any)?.name || profileId;
       } catch {}
-      try {
-        const org = await this.getOrganizationProfile(id);
-        return (org as any)?.name || profileId;
-      } catch {}
     }
     return profileId;
   }
