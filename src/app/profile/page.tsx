@@ -669,13 +669,16 @@ export default function ProfilePage() {
             </div>
             
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowAwardModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <Award className="w-4 h-4 mr-2" />
-                Award Belt
-              </button>
+              {/* Only show Award Belt button for non-white belts */}
+              {profile && 'current_rank' in profile && profile.current_rank && profile.current_rank.belt !== 'White' && (
+                <button
+                  onClick={() => setShowAwardModal(true)}
+                  className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <Award className="w-4 h-4 mr-2" />
+                  Award Belt
+                </button>
+              )}
               
               <button
                 onClick={handleLogout}
