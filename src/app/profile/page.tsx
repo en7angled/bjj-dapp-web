@@ -7,7 +7,22 @@ import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useGlobalData } from '../../contexts/DashboardDataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2, Copy, Check } from 'lucide-react';
+import { 
+  User, 
+  Trophy, 
+  Shield, 
+  Edit3, 
+  Calendar, 
+  Award, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Globe, 
+  ChevronRight, 
+  LogOut, 
+  Copy, 
+  Check 
+} from 'lucide-react';
 import { AwardBeltModal } from '../../components/AwardBeltModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../config/api';
@@ -54,13 +69,11 @@ export default function ProfilePage() {
       }
       // Try enabling in order
       let connected: any = null;
-      let lastErr: any = null;
       for (const w of available) {
         try {
           connected = await BrowserWallet.enable(w.name);
           if (connected) break;
         } catch (e) {
-          lastErr = e;
           console.error('Enable failed for wallet', w.name, e);
         }
       }
@@ -106,7 +119,6 @@ export default function ProfilePage() {
     isAuthenticated, 
     user: profile, 
     profileId, 
-    profileType, 
     isLoading: profileLoading, 
     login, 
     logout 
@@ -237,11 +249,7 @@ export default function ProfilePage() {
     enabled: isAuthenticated && !!professorId && !isMockProfile,
   });
 
-  // Fetch promotions only from awarding practitioner (awarded_by = practitioner of latest belt)
-  const awardingPractitionerId = useMemo(() => {
-    const latest = displayedBelts.length > 0 ? displayedBelts[displayedBelts.length - 1] : null;
-    return latest?.awarded_by_profile_id || null;
-  }, [displayedBelts]);
+
 
   // Use global data provider for promotions
   const allUserPromotions = getPromotionsForProfile(profileId || '');
@@ -336,95 +344,11 @@ export default function ProfilePage() {
     }
   }
 
-  // Fetch user's belt count
-  const { data: userBeltCount, isLoading: beltCountLoading } = useQuery({
-    queryKey: ['user-belt-count', profileId],
-    queryFn: () => BeltSystemAPI.getBeltsCount({ achieved_by: [profileId!] }),
-    enabled: isAuthenticated && !!profileId && !isMockProfile,
-  });
 
-  // Fetch user's promotion count
-  const { data: userPromotionCount, isLoading: promotionCountLoading } = useQuery({
-    queryKey: ['user-promotion-count', profileId],
-    queryFn: () => BeltSystemAPI.getPromotionsCount({ achieved_by: [profileId!] }),
-    enabled: isAuthenticated && !!profileId && !isMockProfile,
-  });
 
   // Removed organization profile query as requested
 
-  const handleLogin = async () => {
 
-    
-    // Use a callback to ensure state is set properly
-    setLoginMode('signin');
-    setShowAuthModal(true);
-    setModalVisible(true);
-    
-    // Force update the ref immediately
-    modalStateRef.current.showAuthModal = true;
-    
-    // Force a re-render
-    setForceRender(prev => prev + 1);
-  };
-
-  const handleSignUp = async () => {
-    
-    // Use a callback to ensure state is set properly
-    setLoginMode('create');
-    setShowAuthModal(true);
-    setModalVisible(true);
-    
-    // Force update the ref immediately
-    modalStateRef.current.showAuthModal = true;
-    
-    // Force a re-render
-    setForceRender(prev => prev + 1);
-  };
-
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setIsAuthenticating(true);
-    
-    try {
-      if (loginMode === 'signin') {
-        // Sign in existing user - for demo purposes, create a mock profile
-        const mockProfileId = `user-${Date.now()}`;
-        const mockProfileType = 'Practitioner' as const;
-        await login(mockProfileId, mockProfileType);
-        closeAuthModal();
-      } else {
-        // Create new user profile
-        if (!authForm.name.trim()) {
-          return;
-        }
-        
-        // For demo purposes, we'll simulate a successful profile creation
-        // In a real app, you would build and submit a blockchain transaction
-        
-        // Simulate transaction building delay
-        setTransactionStatus('building');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Simulate successful transaction
-        setTransactionStatus('success');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Sign in the newly created user
-        const newProfileId = `new-user-${Date.now()}`;
-        const newProfileType = authForm.profileType;
-        await login(newProfileId, newProfileType);
-        
-        closeAuthModal();
-        setTransactionStatus('idle');
-      }
-    } catch (error) {
-      console.error('ProfilePage: Authentication failed:', error);
-      setTransactionStatus('error');
-    } finally {
-      setIsAuthenticating(false);
-    }
-  };
 
   const handleLogout = () => {
     logout();

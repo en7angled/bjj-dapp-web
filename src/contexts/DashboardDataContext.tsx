@@ -3,16 +3,22 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BeltSystemAPI } from '../lib/api';
-import type { RankInformation, PromotionInformation, ProfileSummary } from '../types/api';
+import type { 
+  RankInformation, 
+  PromotionInformation, 
+  ProfileSummary,
+  BeltFrequency,
+  TopAcademy
+} from '../types/api';
 
 interface GlobalData {
   // Dashboard data
-  beltFrequency: any;
+  beltFrequency: BeltFrequency[] | undefined;
   totalBeltsCount: number;
   totalPromotionsCount: number;
   recentPromotions: PromotionInformation[];
   monthlyGrowth: number;
-  topAcademies: any;
+  topAcademies: TopAcademy[] | undefined;
   globalProfilesCount: number;
   activeProfilesCount: number;
   
@@ -29,7 +35,7 @@ interface GlobalData {
 interface GlobalDataContextType {
   data: GlobalData | undefined;
   isLoading: boolean;
-  error: any;
+  error: Error | null;
   
   // Helper functions for getting specific data
   getBeltsForProfile: (profileId: string) => RankInformation[];
@@ -104,7 +110,7 @@ export function GlobalDataProvider({ children }: { children: ReactNode }) {
   });
 
   // Lazy load larger datasets only when needed
-  const { data: allBelts, isLoading: allBeltsLoading } = useQuery({
+  const { data: allBelts } = useQuery({
     queryKey: ['all-belts'],
     queryFn: () => BeltSystemAPI.getBelts({ limit: 1000, order_by: 'date', order: 'desc' }),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -112,7 +118,7 @@ export function GlobalDataProvider({ children }: { children: ReactNode }) {
     enabled: false, // Only fetch when explicitly requested
   });
 
-  const { data: allPromotions, isLoading: allPromotionsLoading } = useQuery({
+  const { data: allPromotions } = useQuery({
     queryKey: ['all-promotions'],
     queryFn: async () => {
       const promotions = await BeltSystemAPI.getPromotions({ limit: 500, order_by: 'date', order: 'desc' });
@@ -123,7 +129,7 @@ export function GlobalDataProvider({ children }: { children: ReactNode }) {
     enabled: false, // Only fetch when explicitly requested
   });
 
-  const { data: allProfiles, isLoading: allProfilesLoading } = useQuery({
+  const { data: allProfiles } = useQuery({
     queryKey: ['all-profiles'],
     queryFn: () => BeltSystemAPI.getProfiles({ limit: 500 }),
     staleTime: 10 * 60 * 1000, // 10 minutes

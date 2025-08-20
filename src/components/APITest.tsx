@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BeltSystemAPI } from '../lib/api';
-import { API_CONFIG } from '../config/api';
-import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface APIStatus {
   endpoint: string;
   status: 'loading' | 'success' | 'error';
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export function APITest() {
@@ -43,7 +42,7 @@ export function APITest() {
           message: 'Success',
           data,
         };
-      } catch (error: any) {
+      } catch (error) {
         newStatuses[newStatuses.length - 1] = {
           endpoint: endpoint.name,
           status: 'error',
@@ -84,7 +83,7 @@ export function APITest() {
         <h3 className="text-lg font-medium text-gray-900 mb-2">API Connection Test</h3>
         <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-600">
-            <strong>API URL:</strong> {API_CONFIG.BASE_URL}
+            <strong>API URL:</strong> Backend API
           </div>
           <button
             onClick={testAPI}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Users, BarChart3, Plus, Home, User, Moon, Sun, Award, Clock } from 'lucide-react';
+import { Trophy, Users, Home, User, Moon, Sun, Award, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { beltColors } from '@/lib/utils';
 import type { BJJBelt } from '@/types/api';
@@ -44,8 +44,8 @@ export function Navigation() {
   }, [theme, mounted]);
 
   const { user: profile, isAuthenticated } = useAuth();
-  const currentBelt: BJJBelt | null = (profile && 'current_rank' in (profile as any))
-    ? ((profile as any).current_rank?.belt as BJJBelt | undefined) ?? null
+  const currentBelt: BJJBelt | null = (profile && 'current_rank' in profile)
+    ? (profile.current_rank?.belt as BJJBelt | undefined) ?? null
     : null;
   const navProfileIcon = isAuthenticated && currentBelt ? (
     <span className="inline-flex items-center justify-center rounded-full w-5 h-5 mr-2" style={{ backgroundColor: beltColors[currentBelt] }}>

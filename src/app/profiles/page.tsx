@@ -6,7 +6,7 @@ import { ProfileList } from '../../components/ProfileList';
 import { ProfileFilters } from '../../components/ProfileFilters';
 import { BeltSystemAPI } from '../../lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Building2 } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 export default function ProfilesPage() {
   const [filters, setFilters] = useState({

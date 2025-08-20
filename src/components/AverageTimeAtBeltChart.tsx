@@ -69,7 +69,7 @@ function computeAverages(belts: RankInformation[]): Averages {
       const start = earliestPerBelt.get(belt);
       if (!start) continue;
 
-      const currentLevel = CORE_BELTS.indexOf(belt);
+
       let nextDate: string | undefined;
       // Search in full timeline (including senior ranks) for any higher-level belt
       for (const r of timeline) {

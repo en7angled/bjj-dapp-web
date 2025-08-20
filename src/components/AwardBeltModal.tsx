@@ -1,13 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import type { BJJBelt, ProfileType } from '../types/api';
+import { useState } from 'react';
 import { BeltSystemAPI } from '../lib/api';
-import { useGlobalData } from '../contexts/DashboardDataContext';
-import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
-import { Address } from '@emurgo/cardano-serialization-lib-browser';
-import { Key, Zap, User, Award, X } from 'lucide-react';
-import { Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
+import { X } from 'lucide-react';
+import type { BJJBelt } from '../types/api';
 
 type AwardBeltModalProps = {
   isOpen: boolean;
@@ -17,7 +13,6 @@ type AwardBeltModalProps = {
 };
 
 export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess }: AwardBeltModalProps) {
-  const { invalidateBeltData, invalidatePromotionData } = useGlobalData();
   const [recipientId, setRecipientId] = useState('');
   const [belt, setBelt] = useState<BJJBelt>('White');
   const [achievementDate, setAchievementDate] = useState<string>(() => new Date().toISOString().replace(/\..+Z$/, 'Z'));
@@ -27,9 +22,7 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, onSuccess
   const [isLoading, setIsLoading] = useState(false);
   const [txStatus, setTxStatus] = useState<'idle' | 'building' | 'ready' | 'submitting' | 'success' | 'error'>('idle');
   const [txUnsigned, setTxUnsigned] = useState('');
-  const [txWitness, setTxWitness] = useState('');
   const [txId, setTxId] = useState('');
-  const [wallet, setWallet] = useState<BrowserWallet | null>(null);
 
   if (!isOpen) return null;
 

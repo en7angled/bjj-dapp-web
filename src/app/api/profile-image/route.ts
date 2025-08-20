@@ -1,6 +1,8 @@
 export const runtime = 'nodejs';
 
 import { NextRequest } from 'next/server';
+import { logger } from '../../../lib/logger';
+import type { APIError } from '../../../types/api';
 
 type UploadResult = { ok: true; image_url: string } | { ok: false; error: string };
 
@@ -10,13 +12,6 @@ const processImage = async (bytes: Uint8Array, profileId: string): Promise<{ fil
   const crypto = await import('crypto');
   
   const image = sharp(bytes, { failOnError: false });
-  
-  // Generate multiple sizes for responsive images
-  const sizes = [
-    { width: 64, height: 64, suffix: 'thumb' },
-    { width: 128, height: 128, suffix: 'small' },
-    { width: 256, height: 256, suffix: 'medium' },
-  ];
   
   const hash = crypto.createHash('sha256').update(profileId).digest('hex');
   const filename = `${hash}.webp`;
@@ -37,10 +32,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     const profileId = (formData.get('profile_id') as string) || '';
     
     if (!file || !(file instanceof File)) {
-      return Response.json({ ok: false, error: 'Missing file' } as UploadResult, { status: 400 });
+      const error: APIError = {
+        message: 'Missing file in request',
+        status: 400,
+        code: 'MISSING_FILE'
+      };
+      
+      return Response.json({ ok: false, error: error.message } as UploadResult, { status: 400 });
     }
+    
     if (!profileId) {
-      return Response.json({ ok: false, error: 'Missing profile_id' } as UploadResult, { status: 400 });
+      const error: APIError = {
+        message: 'Missing profile_id in request',
+        status: 400,
+        code: 'MISSING_PARAMETER'
+      };
+      
+      return Response.json({ ok: false, error: error.message } as UploadResult, { status: 400 });
     }
     
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -61,10 +69,27 @@ export async function POST(req: NextRequest): Promise<Response> {
     fs.writeFileSync(outPath, buffer);
 
     const imageUrl = `/uploads/${filename}`;
+    
+    logger.info('Image uploaded successfully', {
+      profileId,
+      filename,
+      size: buffer.length,
+      path: imageUrl
+    });
+    
     return Response.json({ ok: true, image_url: imageUrl } as UploadResult, { status: 200 });
-  } catch (e: any) {
-    console.error('Image upload error:', e);
-    return Response.json({ ok: false, error: e?.message || 'Upload failed' } as UploadResult, { status: 500 });
+  } catch (error) {
+    const apiError: APIError = {
+      message: error instanceof Error ? error.message : 'Upload failed',
+      status: 500,
+      code: 'UPLOAD_ERROR'
+    };
+    
+    logger.error('Image upload error', error instanceof Error ? error : new Error(apiError.message), {
+      profileId: req.formData ? (await req.formData()).get('profile_id') : 'unknown'
+    });
+    
+    return Response.json({ ok: false, error: apiError.message } as UploadResult, { status: 500 });
   }
 }
 

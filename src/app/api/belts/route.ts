@@ -1,7 +1,9 @@
 import { API_CONFIG } from '../../../config/api';
+import { apiLogger } from '../../../lib/logger';
+import type { APIError } from '../../../types/api';
 
 // Cache for deduplicating requests
-const requestCache = new Map<string, { data: any; timestamp: number }>();
+const requestCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
 export async function GET(req: Request) {
@@ -33,7 +35,12 @@ export async function GET(req: Request) {
     });
     
     if (!upstream.ok) {
-      throw new Error(`Upstream error: ${upstream.status} ${upstream.statusText}`);
+      const error: APIError = {
+        message: `Upstream error: ${upstream.status} ${upstream.statusText}`,
+        status: upstream.status,
+        code: 'UPSTREAM_ERROR'
+      };
+      throw new Error(error.message);
     }
     
     const body = await upstream.text();
@@ -49,10 +56,20 @@ export async function GET(req: Request) {
         'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
       },
     });
-  } catch (e: any) {
-    console.error('Belts API error:', e);
+  } catch (error) {
+    const apiError: APIError = {
+      message: error instanceof Error ? error.message : 'Upstream error',
+      status: 500,
+      code: 'FETCH_ERROR'
+    };
+    
+    apiLogger.error('Belts API error', error instanceof Error ? error : new Error(apiError.message), {
+      url,
+      queryString: qs
+    });
+    
     return new Response(
-      JSON.stringify({ error: e?.message || 'Upstream error' }), 
+      JSON.stringify({ error: apiError.message }), 
       { 
         status: 500,
         headers: { 'Content-Type': 'application/json' }

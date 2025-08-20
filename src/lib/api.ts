@@ -1,9 +1,7 @@
-import ky from 'ky';
 import type {
   RankInformation,
   PromotionInformation,
   PractitionerProfileInformation,
-  ProfileData,
   Interaction,
   AddWitAndSubmitParams,
   GYTxId,
@@ -13,15 +11,6 @@ import type {
 } from '../types/api';
 
 import { API_CONFIG } from '../config/api';
-
-const api = ky.create({
-  prefixUrl: API_CONFIG.BASE_URL,
-  timeout: API_CONFIG.TIMEOUT,
-  retry: API_CONFIG.RETRY_ATTEMPTS,
-  headers: {
-    'Authorization': `Basic ${btoa(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`)}`
-  }
-});
 
 export class BeltSystemAPI {
   // Unified in-memory and localStorage-backed cache for full profile objects
@@ -105,16 +94,16 @@ export class BeltSystemAPI {
       const prKey = `practitioner:${id}`;
       const orgKey = `organization:${id}`;
       const prCached = this.profileCache.get(prKey);
-      if (prCached && prCached.expires > now && (prCached.data as any)?.name) return (prCached.data as any).name;
+      if (prCached && prCached.expires > now && (prCached.data as PractitionerProfileInformation)?.name) return (prCached.data as PractitionerProfileInformation).name;
       const orgCached = this.profileCache.get(orgKey);
-      if (orgCached && orgCached.expires > now && (orgCached.data as any)?.name) return (orgCached.data as any).name;
+      if (orgCached && orgCached.expires > now && (orgCached.data as PractitionerProfileInformation)?.name) return (orgCached.data as PractitionerProfileInformation).name;
     }
 
     // Otherwise fetch using candidates
     for (const id of candidates) {
       try {
         const pr = await this.getPractitionerProfile(id);
-        return (pr as any)?.name || profileId;
+        return pr?.name || profileId;
       } catch {}
     }
     return profileId;

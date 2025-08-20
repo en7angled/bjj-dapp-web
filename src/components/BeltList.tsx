@@ -1,10 +1,8 @@
 'use client';
 
 import { BeltBadge } from './BeltDisplay';
-import { formatDate, beltColors } from '../lib/utils';
+import { formatDate } from '../lib/utils';
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { BeltSystemAPI } from '../lib/api';
 import { RankInformation } from '../types/api';
 import { Trophy, User, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AwarderIcon } from '@/components/AwarderIcon';
@@ -114,160 +112,108 @@ export function BeltList({
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="sr-only">Previous</span>
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                   </button>
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => onPageChange(i * pageSize)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        i === currentPage
-                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
                   <button
                     onClick={() => onPageChange((currentPage + 1) * pageSize)}
                     disabled={currentPage === totalPages - 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="sr-only">Next</span>
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </nav>
               </div>
             </div>
           </div>
         )}
-        <div className="flow-root">
-          <ul className="-my-5 divide-y divide-gray-200">
-            {sortedBelts.map((belt) => (
-              <li key={belt.id} className="py-5">
+
+        {/* Belt List */}
+        <div className="space-y-4">
+          {sortedBelts.map((belt) => (
+            <div key={belt.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: beltColors[belt.belt] }}>
-                      <Trophy className="w-6 h-6" style={{ color: belt.belt === 'White' ? '#111827' : '#FFFFFF' }} />
+                  <BeltBadge belt={belt.belt} />
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <ProfileName id={belt.achieved_by_profile_id} className="text-sm font-medium text-gray-900" />
                     </div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <BeltBadge belt={belt.belt} />
-                      <span className="text-sm text-gray-500">
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Calendar className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-500">
                         {formatDate(belt.achievement_date)}
                       </span>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-900">
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium">Achieved by:</span>
-                        </div>
-                        <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                          <ProfileName id={belt.achieved_by_profile_id} />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <AwarderIcon id={belt.awarded_by_profile_id} />
-                          <span className="font-medium">Awarded by:</span>
-                        </div>
-                        <div className="ml-6 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                          <ProfileName id={belt.awarded_by_profile_id} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-xs text-gray-500">
-                      <Calendar className="w-4 h-4 inline mr-1" />
-                      {formatDate(belt.achievement_date)}
-                    </div>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+                <div className="flex items-center space-x-2">
+                  <AwarderIcon id={belt.awarded_by_profile_id} />
+                  <ProfileName id={belt.awarded_by_profile_id} className="text-sm text-gray-600" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => onPageChange((currentPage - 1) * pageSize)}
-              disabled={currentPage === 0}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => onPageChange((currentPage + 1) * pageSize)}
-              disabled={currentPage === totalPages - 1}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing{' '}
-                <span className="font-medium">{currentPage * pageSize + 1}</span>
-                {' '}to{' '}
-                <span className="font-medium">
-                  {Math.min((currentPage + 1) * pageSize, totalCount)}
-                </span>
-                {' '}of{' '}
-                <span className="font-medium">{totalCount}</span>
-                {' '}results
-              </p>
+        {/* Bottom Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gray-50 -mx-4 -mb-5 px-4 py-3 mt-4 flex items-center justify-between border-t border-gray-200 sm:px-6 sm:rounded-b-lg">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => onPageChange((currentPage - 1) * pageSize)}
+                disabled={currentPage === 0}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => onPageChange((currentPage + 1) * pageSize)}
+                disabled={currentPage === totalPages - 1}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => onPageChange((currentPage - 1) * pageSize)}
-                  disabled={currentPage === 0}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="sr-only">Previous</span>
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                
-                {[...Array(totalPages)].map((_, i) => (
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{' '}
+                  <span className="font-medium">{currentPage * pageSize + 1}</span>
+                  {' '}to{' '}
+                  <span className="font-medium">
+                    {Math.min((currentPage + 1) * pageSize, totalCount)}
+                  </span>
+                  {' '}of{' '}
+                  <span className="font-medium">{totalCount}</span>
+                  {' '}results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                   <button
-                    key={i}
-                    onClick={() => onPageChange(i * pageSize)}
-                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                      i === currentPage
-                        ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                    }`}
+                    onClick={() => onPageChange((currentPage - 1) * pageSize)}
+                    disabled={currentPage === 0}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {i + 1}
+                    <span className="sr-only">Previous</span>
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                   </button>
-                ))}
-                
-                <button
-                  onClick={() => onPageChange((currentPage + 1) * pageSize)}
-                  disabled={currentPage === totalPages - 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="sr-only">Next</span>
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
+                  <button
+                    onClick={() => onPageChange((currentPage + 1) * pageSize)}
+                    disabled={currentPage === totalPages - 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 export const runtime = 'nodejs';
 
+import { dbLogger } from '../../../lib/logger';
+import type { DatabaseError, APIError } from '../../../types/api';
+
 // Simple SQLite-backed metadata store keyed by profileId
 // Requires: npm i better-sqlite3 (native). If unavailable, falls back to in-memory Map (non-persistent).
 
@@ -13,17 +16,26 @@ type ProfileMetadata = {
   updated_at?: string;
 };
 
+interface SQLiteDatabase {
+  pragma: (setting: string) => void;
+  prepare: (sql: string) => {
+    run: (params?: Record<string, unknown>) => void;
+    get: (params?: unknown) => ProfileMetadata | undefined;
+  };
+  transaction: (fn: () => void) => () => void;
+}
+
 let memStore: Map<string, ProfileMetadata> | null = null;
-let db: any = null;
+let db: SQLiteDatabase | null = null;
 let dbInitialized = false;
 
-function getDb() {
+function getDb(): SQLiteDatabase | null {
   if (db !== null) return db;
   if (dbInitialized) return null; // Prevent multiple initialization attempts
   
   try {
     // Use createRequire to import CJS module in ESM context
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const { createRequire } = require('module');
     const req = createRequire(import.meta.url);
     const Database = req('better-sqlite3');
@@ -34,7 +46,7 @@ function getDb() {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     
     const filePath = path.join(dir, 'metadata.db');
-    db = new Database(filePath);
+    db = new Database(filePath) as SQLiteDatabase;
     
     // Optimize SQLite performance
     db.pragma('journal_mode = WAL');
@@ -60,8 +72,17 @@ function getDb() {
     
     dbInitialized = true;
     return db;
-  } catch (e) {
-    console.error('Failed to initialize SQLite database:', e);
+  } catch (error) {
+    const dbError: DatabaseError = {
+      message: 'Failed to initialize SQLite database',
+      code: 'INITIALIZATION_FAILED',
+      details: { error: error instanceof Error ? error.message : 'Unknown error' }
+    };
+    
+    dbLogger.error(dbError.message, error instanceof Error ? error : new Error(dbError.message), {
+      fallback: 'in-memory'
+    });
+    
     dbInitialized = true;
     // Fallback to in-memory (non-persistent)
     memStore = memStore || new Map();
@@ -74,7 +95,13 @@ export async function GET(req: Request) {
   const id = searchParams.get('id');
   
   if (!id) {
-    return new Response(JSON.stringify({ error: 'Missing id' }), { 
+    const error: APIError = {
+      message: 'Missing id parameter',
+      status: 400,
+      code: 'MISSING_PARAMETER'
+    };
+    
+    return new Response(JSON.stringify({ error: error.message }), { 
       status: 400, 
       headers: { 'Content-Type': 'application/json' } 
     });
@@ -102,8 +129,17 @@ export async function GET(req: Request) {
       } 
     });
   } catch (error) {
-    console.error('GET profile metadata error:', error);
-    return new Response(JSON.stringify({ error: 'Database error' }), { 
+    const apiError: APIError = {
+      message: 'Database error occurred',
+      status: 500,
+      code: 'DATABASE_ERROR'
+    };
+    
+    dbLogger.error('GET profile metadata error', error instanceof Error ? error : new Error(apiError.message), {
+      profileId: id
+    });
+    
+    return new Response(JSON.stringify({ error: apiError.message }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });
@@ -115,7 +151,13 @@ export async function PUT(req: Request) {
     const body = (await req.json()) as ProfileMetadata;
     
     if (!body?.profile_id) {
-      return new Response(JSON.stringify({ error: 'Missing profile_id' }), { 
+      const error: APIError = {
+        message: 'Missing profile_id in request body',
+        status: 400,
+        code: 'MISSING_PARAMETER'
+      };
+      
+      return new Response(JSON.stringify({ error: error.message }), { 
         status: 400, 
         headers: { 'Content-Type': 'application/json' } 
       });
@@ -149,9 +191,16 @@ export async function PUT(req: Request) {
       status: 200, 
       headers: { 'Content-Type': 'application/json' } 
     });
-  } catch (e: any) {
-    console.error('PUT profile metadata error:', e);
-    return new Response(JSON.stringify({ error: e?.message || 'Invalid JSON' }), { 
+  } catch (error) {
+    const apiError: APIError = {
+      message: error instanceof Error ? error.message : 'Invalid JSON',
+      status: 400,
+      code: 'INVALID_REQUEST'
+    };
+    
+    dbLogger.error('PUT profile metadata error', error instanceof Error ? error : new Error(apiError.message));
+    
+    return new Response(JSON.stringify({ error: apiError.message }), { 
       status: 400, 
       headers: { 'Content-Type': 'application/json' } 
     });

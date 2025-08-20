@@ -7,7 +7,6 @@ import { Clock, User, Award } from 'lucide-react';
 import { ProfileName } from './ProfileName';
 import { beltColors } from '../lib/utils';
 import { AwarderIcon } from '@/components/AwarderIcon';
-import { useMemo } from 'react';
 
 export function RecentPromotions() {
   const { data: dashboardData, isLoading } = useDashboardData();

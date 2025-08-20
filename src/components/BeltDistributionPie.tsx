@@ -1,7 +1,7 @@
 'use client';
 
 import { useDashboardData } from '../contexts/DashboardDataContext';
-import { beltColors, beltOrder, getBeltDisplayName } from '../lib/utils';
+import { beltColors, getBeltDisplayName } from '../lib/utils';
 import type { BJJBelt, BeltFrequency } from '../types/api';
 import {
   Chart as ChartJS,

@@ -8,9 +8,20 @@ import { BeltSystemAPI } from '../../../lib/api';
 import { ProfileName } from '../../../components/ProfileName';
 import { BeltBadge } from '../../../components/BeltDisplay';
 import { formatDate } from '../../../lib/utils';
-import { User, Building2, Trophy, Calendar, MapPin, Phone, Mail, Globe, Shield, Copy, Check } from 'lucide-react';
+import { 
+  Trophy, 
+  Users, 
+  TrendingUp, 
+  Shield, 
+  Calendar,
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  Copy,
+  Check
+} from 'lucide-react';
 import { beltColors } from '../../../lib/utils';
-import type { BJJBelt } from '../../../types/api';
 
 export default function PublicProfilePage() {
   const params = useParams();
@@ -91,7 +102,7 @@ export default function PublicProfilePage() {
               <Shield className="mx-auto h-12 w-12 text-gray-400" />
               <h1 className="mt-2 text-2xl font-bold text-gray-900">Profile Not Found</h1>
               <p className="mt-1 text-sm text-gray-500">
-                The profile you're looking for doesn't exist or has been removed.
+                The profile you&apos;re looking for doesn&apos;t exist or has been removed.
               </p>
             </div>
           </div>
@@ -140,9 +151,9 @@ export default function PublicProfilePage() {
                       : 'bg-gradient-to-br from-green-400 to-teal-500'
                   }`}>
                     {isPractitioner ? (
-                      <User className="w-12 h-12 text-white" />
+                      <Users className="w-12 h-12 text-white" />
                     ) : (
-                      <Building2 className="w-12 h-12 text-white" />
+                      <TrendingUp className="w-12 h-12 text-white" />
                     )}
                   </div>
                 </div>
