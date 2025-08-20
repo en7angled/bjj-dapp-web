@@ -17,6 +17,7 @@ import {
   Users, 
   Shield
 } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingStates';
 
 function DashboardContent() {
   const { data, isLoading } = useDashboardData();
@@ -27,7 +28,7 @@ function DashboardContent() {
         <Navigation />
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="lg" text="Loading dashboard..." />
           </div>
         </main>
       </div>

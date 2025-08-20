@@ -9,6 +9,15 @@ import { BeltSystemAPI } from '../lib/api';
 import { API_CONFIG } from '../config/api';
 import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
 import { Address, Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
+import { useFormValidation, COMMON_RULES, VALIDATION_PATTERNS } from '../lib/validation';
+import { LoadingButton, ErrorState, SuccessState } from './LoadingStates';
+import { 
+  connectWalletWithRetry, 
+  validateWalletNetwork, 
+  getWalletAddresses,
+  createWalletError,
+  getErrorSuggestions 
+} from '../lib/wallet-utils';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -41,6 +50,29 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   const [debugOpen, setDebugOpen] = useState<boolean>(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [lastStatus, setLastStatus] = useState<number | null>(null);
+  
+  // Form validation
+  const signinValidation = useFormValidation(
+    { profileId, profileType },
+    {
+      profileId: COMMON_RULES.PROFILE_ID,
+      profileType: COMMON_RULES.REQUIRED
+    }
+  );
+
+  const createValidation = useFormValidation(
+    { firstName, lastName, middleName, createDescription, createImageUri, usedAddresses, changeAddress, createAchievementDate },
+    {
+      firstName: COMMON_RULES.NAME,
+      lastName: COMMON_RULES.NAME,
+      middleName: { pattern: VALIDATION_PATTERNS.NAME, maxLength: 50 },
+      createDescription: COMMON_RULES.DESCRIPTION,
+      createImageUri: { pattern: VALIDATION_PATTERNS.URL },
+      usedAddresses: COMMON_RULES.REQUIRED,
+      changeAddress: COMMON_RULES.REQUIRED,
+      createAchievementDate: COMMON_RULES.REQUIRED
+    }
+  );
   
   const { login } = useAuth();
   const { invalidateProfileData } = useGlobalData();
@@ -88,27 +120,32 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
   }
 
-  // Ensure a CIP-30 wallet is connected; returns true if connected
-  // Ensure a CIP-30 compatible browser wallet is connected and prefill addresses
+  // Enhanced wallet connection with better error handling
   async function ensureWalletConnected(): Promise<boolean> {
     if (wallet) return true;
+    
     try {
-      const available = await BrowserWallet.getAvailableWallets();
-      setWallets(available);
-      if (available.length === 0) {
-        setError('No browser wallet found');
-        return false;
-      }
-      const connected = await BrowserWallet.enable(available[0].name);
+      const connected = await connectWalletWithRetry();
       setWallet(connected);
-      const used = await connected.getUsedAddresses();
-      const change = await connected.getChangeAddress();
-      // Prefill for interactions
+      
+      // Validate network
+      await validateWalletNetwork(connected, API_CONFIG.NETWORK_ID);
+      
+      // Get addresses
+      const { usedAddresses: used, changeAddress: change } = await getWalletAddresses(connected);
       setUsedAddresses(used.join('\n'));
       setChangeAddress(change);
+      
       return true;
-    } catch (e) {
-      setError('Failed to connect wallet');
+    } catch (error) {
+      const walletError = createWalletError(
+        error instanceof Error && error.message.includes('No CIP-30') ? 'NO_WALLET' :
+        error instanceof Error && error.message.includes('Network mismatch') ? 'NETWORK_MISMATCH' :
+        'CONNECTION_FAILED',
+        error instanceof Error ? error.message : 'Failed to connect wallet'
+      );
+      
+      setError(walletError.message);
       return false;
     }
   }
@@ -119,13 +156,16 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     setError('');
 
     if (mode === 'signin') {
-      if (!profileId.trim()) {
-        setError('Profile ID is required');
+      // Validate signin form
+      if (!signinValidation.validate()) {
+        setError('Please fix the validation errors above');
         return;
       }
+      
       // require wallet connection for sign-in
       const ok = await ensureWalletConnected();
       if (!ok) return;
+      
       setIsLoading(true);
       try {
         await login(profileId.trim(), profileType);
@@ -139,25 +179,9 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
 
     // Create profile flow using Interactions API (build-tx)
-    const nameRegex = /^\p{L}+$/u; // letters only (unicode)
-    if (!firstName.trim() || !nameRegex.test(firstName.trim())) {
-      setError('First name is required and must contain letters only');
-      return;
-    }
-    if (!lastName.trim() || !nameRegex.test(lastName.trim())) {
-      setError('Last name is required and must contain letters only');
-      return;
-    }
-    if (middleName.trim() && !nameRegex.test(middleName.trim())) {
-      setError('Middle name must contain letters only');
-      return;
-    }
-    if (!changeAddress.trim() || !usedAddresses.trim()) {
-      setError('Addresses are required to build the transaction');
-      return;
-    }
-    if (!createAchievementDate) {
-      setError('Achievement date is required');
+    // Validate create form
+    if (!createValidation.validate()) {
+      setError('Please fix the validation errors above');
       return;
     }
     setIsLoading(true);
@@ -519,8 +543,26 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                 {/* Profile ID Input */}
                 <div>
                   <label htmlFor="profileId" className="block text-sm font-medium text-gray-900 mb-2">Profile ID</label>
-                  <input type="text" id="profileId" value={profileId} onChange={(e) => setProfileId(e.target.value)} placeholder={profileType === 'Practitioner' ? 'Enter your practitioner ID' : 'Enter your organization ID'} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled={isLoading} />
-                  <p className="mt-1 text-xs text-gray-700">{profileType === 'Practitioner' ? 'This is your unique practitioner identifier' : 'This is your unique organization identifier'}</p>
+                  <input 
+                    type="text" 
+                    id="profileId" 
+                    value={profileId} 
+                    onChange={(e) => {
+                      setProfileId(e.target.value);
+                      signinValidation.setFieldValue('profileId', e.target.value);
+                    }}
+                    onBlur={() => signinValidation.setFieldTouched('profileId')}
+                    placeholder={profileType === 'Practitioner' ? 'Enter your practitioner ID' : 'Enter your organization ID'} 
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      signinValidation.getFieldError('profileId') ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    disabled={isLoading} 
+                  />
+                  {signinValidation.getFieldError('profileId') ? (
+                    <p className="mt-1 text-xs text-red-600">{signinValidation.getFieldError('profileId')?.message}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-700">{profileType === 'Practitioner' ? 'This is your unique practitioner identifier' : 'This is your unique organization identifier'}</p>
+                  )}
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <button type="button" onClick={ensureWalletConnected} className="px-3 py-2 border rounded-md text-sm">
@@ -655,13 +697,27 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
             <div className="flex space-x-3">
               <button type="button" onClick={handleClose} disabled={isLoading} className="flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">Cancel</button>
               {mode === 'signin' ? (
-                <button type="submit" disabled={isLoading || !profileId.trim()} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Signing In...</>) : (<><Key className="w-4 h-4 mr-2" /> Sign In</>)}
-                </button>
+                <LoadingButton
+                  type="submit"
+                  isLoading={isLoading}
+                  disabled={!profileId.trim() || !signinValidation.isValid}
+                  loadingText="Signing In..."
+                  className="flex-1"
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Sign In
+                </LoadingButton>
               ) : (
-                <button type="submit" disabled={isLoading || !firstName.trim() || !lastName.trim() || !createAchievementDate} className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
-                  {isLoading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Building...</>) : (<><Key className="w-4 h-4 mr-2" /> Build Transaction</>)}
-                </button>
+                <LoadingButton
+                  type="submit"
+                  isLoading={isLoading}
+                  disabled={!firstName.trim() || !lastName.trim() || !createAchievementDate || !createValidation.isValid}
+                  loadingText="Building..."
+                  className="flex-1"
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Build Transaction
+                </LoadingButton>
               )}
             </div>
 

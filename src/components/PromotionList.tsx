@@ -5,6 +5,7 @@ import { formatDate } from '../lib/utils';
 import { PromotionInformation } from '../types/api';
 import { TrendingUp, User, Award, Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { ProfileName } from './ProfileName';
+import { ListSkeleton, EmptyState } from './LoadingStates';
 
 interface PromotionListProps {
   promotions: PromotionInformation[];
@@ -29,14 +30,7 @@ export function PromotionList({
     return (
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
+          <ListSkeleton count={5} showImage={false} />
         </div>
       </div>
     );
@@ -46,13 +40,11 @@ export function PromotionList({
     return (
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-12 sm:px-6">
-          <div className="text-center">
-            <TrendingUp className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No pending promotions</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              All promotions have been processed or there are no pending requests.
-            </p>
-          </div>
+          <EmptyState
+            icon={TrendingUp}
+            title="No pending promotions"
+            description="All promotions have been processed or there are no pending requests."
+          />
         </div>
       </div>
     );
