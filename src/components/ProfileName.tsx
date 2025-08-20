@@ -15,8 +15,14 @@ export function ProfileName({ id, className, truncate = 12 }: ProfileNameProps) 
     queryKey: ['profile-name', id],
     queryFn: () => BeltSystemAPI.resolveProfileName(id || ''),
     enabled: Boolean(id),
-    staleTime: 1000 * 60 * 60 * 24, // 24h
+    staleTime: 1000 * 60 * 60 * 24, // 24h - profile names don't change often
+    gcTime: 1000 * 60 * 60 * 24 * 7, // Keep in cache for 7 days
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+  
   const fallback = id ? truncateAddress(id, truncate) : '';
   return <span className={className}>{isLoading ? fallback : (data || fallback)}</span>;
 }

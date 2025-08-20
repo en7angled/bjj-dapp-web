@@ -15,9 +15,12 @@ type ProfileMetadata = {
 
 let memStore: Map<string, ProfileMetadata> | null = null;
 let db: any = null;
+let dbInitialized = false;
 
 function getDb() {
   if (db !== null) return db;
+  if (dbInitialized) return null; // Prevent multiple initialization attempts
+  
   try {
     // Use createRequire to import CJS module in ESM context
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -26,11 +29,21 @@ function getDb() {
     const Database = req('better-sqlite3');
     const fs = req('fs');
     const path = req('path');
+    
     const dir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    
     const filePath = path.join(dir, 'metadata.db');
     db = new Database(filePath);
+    
+    // Optimize SQLite performance
     db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+    db.pragma('cache_size = 10000');
+    db.pragma('temp_store = MEMORY');
+    db.pragma('mmap_size = 268435456'); // 256MB
+    
+    // Create table with indexes for better performance
     db.prepare(`CREATE TABLE IF NOT EXISTS profile_metadata (
       profile_id TEXT PRIMARY KEY,
       location TEXT,
@@ -40,8 +53,16 @@ function getDb() {
       image_url TEXT,
       updated_at TEXT
     )`).run();
+    
+    // Create indexes for common queries
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_profile_metadata_updated_at ON profile_metadata(updated_at)').run();
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_profile_metadata_email ON profile_metadata(email)').run();
+    
+    dbInitialized = true;
     return db;
   } catch (e) {
+    console.error('Failed to initialize SQLite database:', e);
+    dbInitialized = true;
     // Fallback to in-memory (non-persistent)
     memStore = memStore || new Map();
     return null;
@@ -51,40 +72,89 @@ function getDb() {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  if (!id) return new Response('Missing id', { status: 400 });
-  const sqlite = getDb();
-  if (sqlite) {
-    const row = sqlite.prepare('SELECT * FROM profile_metadata WHERE profile_id = ?').get(id);
-    return new Response(JSON.stringify(row || { profile_id: id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Missing id' }), { 
+      status: 400, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
-  const data = memStore!.get(id) || { profile_id: id };
-  return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  
+  try {
+    const sqlite = getDb();
+    if (sqlite) {
+      const row = sqlite.prepare('SELECT * FROM profile_metadata WHERE profile_id = ?').get(id);
+      return new Response(JSON.stringify(row || { profile_id: id }), { 
+        status: 200, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+        } 
+      });
+    }
+    
+    const data = memStore!.get(id) || { profile_id: id };
+    return new Response(JSON.stringify(data), { 
+      status: 200, 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+      } 
+    });
+  } catch (error) {
+    console.error('GET profile metadata error:', error);
+    return new Response(JSON.stringify({ error: 'Database error' }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
+  }
 }
 
 export async function PUT(req: Request) {
   try {
     const body = (await req.json()) as ProfileMetadata;
-    if (!body?.profile_id) return new Response('Missing profile_id', { status: 400 });
+    
+    if (!body?.profile_id) {
+      return new Response(JSON.stringify({ error: 'Missing profile_id' }), { 
+        status: 400, 
+        headers: { 'Content-Type': 'application/json' } 
+      });
+    }
+    
     body.updated_at = new Date().toISOString();
     const sqlite = getDb();
+    
     if (sqlite) {
-      sqlite
-        .prepare(`INSERT INTO profile_metadata (profile_id, location, phone, email, website, image_url, updated_at)
-                  VALUES (@profile_id, @location, @phone, @email, @website, @image_url, @updated_at)
-                  ON CONFLICT(profile_id) DO UPDATE SET
-                    location=excluded.location,
-                    phone=excluded.phone,
-                    email=excluded.email,
-                    website=excluded.website,
-                    image_url=excluded.image_url,
-                    updated_at=excluded.updated_at`)
-        .run(body);
+      // Use transaction for better performance
+      const transaction = sqlite.transaction(() => {
+        sqlite
+          .prepare(`INSERT INTO profile_metadata (profile_id, location, phone, email, website, image_url, updated_at)
+                    VALUES (@profile_id, @location, @phone, @email, @website, @image_url, @updated_at)
+                    ON CONFLICT(profile_id) DO UPDATE SET
+                      location=excluded.location,
+                      phone=excluded.phone,
+                      email=excluded.email,
+                      website=excluded.website,
+                      image_url=excluded.image_url,
+                      updated_at=excluded.updated_at`)
+          .run(body);
+      });
+      
+      transaction();
     } else {
       memStore!.set(body.profile_id, body);
     }
-    return new Response(JSON.stringify({ ok: true, updated_at: body.updated_at }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    
+    return new Response(JSON.stringify({ ok: true, updated_at: body.updated_at }), { 
+      status: 200, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   } catch (e: any) {
-    return new Response(e?.message || 'Invalid JSON', { status: 400 });
+    console.error('PUT profile metadata error:', e);
+    return new Response(JSON.stringify({ error: e?.message || 'Invalid JSON' }), { 
+      status: 400, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 }
 

@@ -9,13 +9,25 @@ import { useGlobalData } from '../../contexts/DashboardDataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Trophy, Shield, Edit3, Calendar, Award, MapPin, Phone, Mail, Globe, ChevronRight, LogOut, Building2, Copy, Check } from 'lucide-react';
 import { AwardBeltModal } from '../../components/AwardBeltModal';
-import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
-import { Address, Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../config/api';
 import type { 
   BJJBelt
 } from '../../types/api';
+
+// Dynamic imports for heavy Cardano libraries
+const loadCardanoLibraries = async () => {
+  const [BrowserWallet, { deserializeAddress }, { Address, Transaction, TransactionWitnessSet }] = await Promise.all([
+    import('@meshsdk/core').then(m => m.BrowserWallet),
+    import('@meshsdk/core').then(m => ({ deserializeAddress: m.deserializeAddress })),
+    import('@emurgo/cardano-serialization-lib-browser').then(m => ({ 
+      Address: m.Address, 
+      Transaction: m.Transaction, 
+      TransactionWitnessSet: m.TransactionWitnessSet 
+    }))
+  ]);
+  return { BrowserWallet, deserializeAddress, Address, Transaction, TransactionWitnessSet };
+};
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
@@ -33,38 +45,44 @@ export default function ProfilePage() {
 
   async function connectFirstAvailableWallet() {
     setWalletError(null);
-    const available = await BrowserWallet.getAvailableWallets();
-
-    if (!available || available.length === 0) {
-      throw new Error('No CIP-30 wallet detected. Install Nami, Lace, Eternl, Flint, etc.');
-    }
-    // Try enabling in order
-    let connected: any = null;
-    let lastErr: any = null;
-    for (const w of available) {
-      try {
-        connected = await BrowserWallet.enable(w.name);
-        if (connected) break;
-      } catch (e) {
-        lastErr = e;
-        console.error('Enable failed for wallet', w.name, e);
-      }
-    }
-    if (!connected) {
-      const names = available.map(w => w.name).join(', ');
-      const msg = `Failed to connect wallets: ${names}`;
-      throw new Error(msg);
-    }
     try {
-      const nid = await connected.getNetworkId();
-      if (nid !== API_CONFIG.NETWORK_ID) {
-        throw new Error(`Wallet network mismatch. Expected ${API_CONFIG.NETWORK_ID === 0 ? 'testnet' : 'mainnet'}.`);
+      const { BrowserWallet } = await loadCardanoLibraries();
+      const available = await BrowserWallet.getAvailableWallets();
+
+      if (!available || available.length === 0) {
+        throw new Error('No CIP-30 wallet detected. Install Nami, Lace, Eternl, Flint, etc.');
       }
-    } catch (e) {
-      // propagate explicit error
-      throw e instanceof Error ? e : new Error('Unable to verify wallet network');
+      // Try enabling in order
+      let connected: any = null;
+      let lastErr: any = null;
+      for (const w of available) {
+        try {
+          connected = await BrowserWallet.enable(w.name);
+          if (connected) break;
+        } catch (e) {
+          lastErr = e;
+          console.error('Enable failed for wallet', w.name, e);
+        }
+      }
+      if (!connected) {
+        const names = available.map(w => w.name).join(', ');
+        const msg = `Failed to connect wallets: ${names}`;
+        throw new Error(msg);
+      }
+      try {
+        const nid = await connected.getNetworkId();
+        if (nid !== API_CONFIG.NETWORK_ID) {
+          throw new Error(`Wallet network mismatch. Expected ${API_CONFIG.NETWORK_ID === 0 ? 'testnet' : 'mainnet'}.`);
+        }
+      } catch (e) {
+        // propagate explicit error
+        throw e instanceof Error ? e : new Error('Unable to verify wallet network');
+      }
+      return connected;
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message : 'Failed to connect wallet');
+      throw error;
     }
-    return connected;
   }
   const modalRef = useRef<HTMLDivElement>(null);
   const modalStateRef = useRef({ showAuthModal, loginMode });
@@ -239,16 +257,18 @@ export default function ProfilePage() {
     return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  function toHex114(addr: string): string | null {
+  async function toHex114(addr: string): Promise<string | null> {
     const t = (addr || '').trim();
     if (!t) return null;
     if (/^[0-9a-fA-F]+$/.test(t)) return t.length === 114 ? t : null;
     try {
+      const { deserializeAddress, Address } = await loadCardanoLibraries();
       const parsed: any = deserializeAddress(t);
       const hex = bytesToHex(parsed.address.to_bytes());
       return hex.length === 114 ? hex : null;
     } catch {
       try {
+        const { Address } = await loadCardanoLibraries();
         const a = Address.from_bech32(t);
         const hex = bytesToHex(a.to_bytes());
         return hex.length === 114 ? hex : null;
@@ -258,7 +278,7 @@ export default function ProfilePage() {
     }
   }
 
-  async function ensureWalletConnected(): Promise<BrowserWallet> {
+  async function ensureWalletConnected(): Promise<any> {
     if (wallet) return wallet;
     const connected = await connectFirstAvailableWallet();
     setWallet(connected);
@@ -274,8 +294,8 @@ export default function ProfilePage() {
       if (nid !== API_CONFIG.NETWORK_ID) throw new Error('Wallet network mismatch.');
       const used = await w.getUsedAddresses();
       const change = await w.getChangeAddress();
-      const usedHex = Array.from(new Set(used.map(toHex114).filter(Boolean) as string[]));
-      const changeHex = toHex114(change);
+      const usedHex = Array.from(new Set((await Promise.all(used.map((addr: string) => toHex114(addr)))).filter(Boolean) as string[]));
+      const changeHex = await toHex114(change);
       if (!changeHex) throw new Error('Invalid change address');
       if (usedHex.length === 0) usedHex.push(changeHex);
       if (!usedHex.includes(changeHex)) usedHex.push(changeHex);
@@ -296,8 +316,10 @@ export default function ProfilePage() {
       let signed = await w.signTx(unsigned, true);
       // Ensure witness set
       try {
+        const { TransactionWitnessSet } = await loadCardanoLibraries();
         TransactionWitnessSet.from_bytes(Buffer.from(signed, 'hex'));
       } catch {
+        const { Transaction } = await loadCardanoLibraries();
         const tx = Transaction.from_bytes(Buffer.from(signed, 'hex'));
         const ws = tx.witness_set();
         signed = Buffer.from(ws.to_bytes()).toString('hex');
@@ -477,8 +499,8 @@ export default function ProfilePage() {
       if (nid !== API_CONFIG.NETWORK_ID) throw new Error('Wallet network mismatch.');
       const used = await w.getUsedAddresses();
       const change = await w.getChangeAddress();
-      const usedHex = Array.from(new Set((used.map(toHex114).filter(Boolean) as string[])));
-      const changeHex = toHex114(change);
+      const usedHex = Array.from(new Set((await Promise.all(used.map((addr: string) => toHex114(addr)))).filter(Boolean) as string[]));
+      const changeHex = await toHex114(change);
       if (!changeHex) throw new Error('Invalid change address');
       if (usedHex.length === 0) usedHex.push(changeHex);
       if (!usedHex.includes(changeHex)) usedHex.push(changeHex);
@@ -500,8 +522,10 @@ export default function ProfilePage() {
       const unsigned = await BeltSystemAPI.buildTransaction(interaction as any);
       let signed = await w.signTx(unsigned, true);
       try {
+        const { TransactionWitnessSet } = await loadCardanoLibraries();
         TransactionWitnessSet.from_bytes(Buffer.from(signed, 'hex'));
       } catch {
+        const { Transaction } = await loadCardanoLibraries();
         const tx = Transaction.from_bytes(Buffer.from(signed, 'hex'));
         const ws = tx.witness_set();
         signed = Buffer.from(ws.to_bytes()).toString('hex');

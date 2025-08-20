@@ -46,85 +46,96 @@ interface GlobalDataContextType {
 const GlobalDataContext = createContext<GlobalDataContextType | undefined>(undefined);
 
 export function GlobalDataProvider({ children }: { children: ReactNode }) {
-  // Centralized queries for all data
+  // Optimized query configuration with different stale times based on data volatility
   const { data: beltFrequency, isLoading: frequencyLoading } = useQuery({
     queryKey: ['belt-frequency'],
     queryFn: () => BeltSystemAPI.getBeltsFrequency(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes - less volatile
+    refetchInterval: 5 * 60 * 1000, // Background refresh every 5 minutes
   });
 
   const { data: totalBeltsCount, isLoading: totalBeltsLoading } = useQuery({
     queryKey: ['total-belts-count'],
     queryFn: () => BeltSystemAPI.getBeltsCount({}),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 2 * 60 * 1000, // Background refresh every 2 minutes
   });
 
   const { data: totalPromotionsCount, isLoading: totalPromotionsLoading } = useQuery({
     queryKey: ['total-promotions-count'],
     queryFn: () => BeltSystemAPI.getPromotionsCount({}),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 2 * 60 * 1000, // Background refresh every 2 minutes
   });
 
   const { data: recentPromotions, isLoading: recentPromotionsLoading } = useQuery({
     queryKey: ['recent-promotions'],
     queryFn: () => BeltSystemAPI.getRecentPromotions(30),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 1 * 60 * 1000, // 1 minute - more volatile
+    refetchInterval: 30 * 1000, // Background refresh every 30 seconds
   });
 
   const { data: monthlyGrowth, isLoading: growthLoading } = useQuery({
     queryKey: ['monthly-growth'],
     queryFn: () => BeltSystemAPI.getMonthlyGrowthRate(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 15 * 60 * 1000, // 15 minutes - less volatile
+    refetchInterval: 10 * 60 * 1000, // Background refresh every 10 minutes
   });
 
   const { data: topAcademies, isLoading: academiesLoading } = useQuery({
     queryKey: ['top-academies'],
     queryFn: () => BeltSystemAPI.getTopPerformingAcademies(5),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    refetchInterval: 10 * 60 * 1000, // Background refresh every 10 minutes
   });
 
   const { data: globalProfilesCount, isLoading: profilesCountLoading } = useQuery({
     queryKey: ['global-profiles-count'],
     queryFn: () => BeltSystemAPI.getProfilesCount(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 5 * 60 * 1000, // Background refresh every 5 minutes
   });
 
   const { data: activeProfilesCount, isLoading: activeProfilesLoading } = useQuery({
     queryKey: ['active-profiles-count'],
     queryFn: () => BeltSystemAPI.getActiveProfilesCount(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 5 * 60 * 1000, // Background refresh every 5 minutes
   });
 
-  // Fetch all belts for caching (with reasonable limit)
+  // Lazy load larger datasets only when needed
   const { data: allBelts, isLoading: allBeltsLoading } = useQuery({
     queryKey: ['all-belts'],
     queryFn: () => BeltSystemAPI.getBelts({ limit: 1000, order_by: 'date', order: 'desc' }),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 3 * 60 * 1000, // Background refresh every 3 minutes
+    enabled: false, // Only fetch when explicitly requested
   });
 
-  // Fetch all promotions for caching
   const { data: allPromotions, isLoading: allPromotionsLoading } = useQuery({
     queryKey: ['all-promotions'],
     queryFn: async () => {
-              const promotions = await BeltSystemAPI.getPromotions({ limit: 500, order_by: 'date', order: 'desc' });
-        return promotions;
+      const promotions = await BeltSystemAPI.getPromotions({ limit: 500, order_by: 'date', order: 'desc' });
+      return promotions;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 3 * 60 * 1000, // Background refresh every 3 minutes
+    enabled: false, // Only fetch when explicitly requested
   });
 
-  // Fetch all profiles for caching
   const { data: allProfiles, isLoading: allProfilesLoading } = useQuery({
     queryKey: ['all-profiles'],
     queryFn: () => BeltSystemAPI.getProfiles({ limit: 500 }),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 5 * 60 * 1000, // Background refresh every 5 minutes
+    enabled: false, // Only fetch when explicitly requested
   });
 
   const isLoading = frequencyLoading || totalBeltsLoading || totalPromotionsLoading || 
                    recentPromotionsLoading || growthLoading || academiesLoading || 
-                   profilesCountLoading || activeProfilesLoading || allBeltsLoading ||
-                   allPromotionsLoading || allProfilesLoading;
+                   profilesCountLoading || activeProfilesLoading;
 
-  // Create cached maps for efficient lookups
+  // Create cached maps for efficient lookups - only when data is available
   const beltsByProfile = new Map<string, RankInformation[]>();
   const promotionsByProfile = new Map<string, PromotionInformation[]>();
 
