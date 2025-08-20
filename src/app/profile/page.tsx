@@ -396,7 +396,7 @@ export default function ProfilePage() {
     enabled: isAuthenticated && !!normalizedProfileId,
   });
 
-  const [metaDraft, setMetaDraft] = useState<{ location?: string; phone?: string; email?: string; website?: string; image_url?: string }>({});
+  const [metaDraft, setMetaDraft] = useState<{ location?: string; phone?: string; email?: string; website?: string; image_url?: string; birth_date?: string; gender?: string }>({});
   useEffect(() => {
     setMetaDraft({
       location: (profileMeta as any)?.location || undefined,
@@ -404,6 +404,8 @@ export default function ProfilePage() {
       email: (profileMeta as any)?.email || undefined,
       website: (profileMeta as any)?.website || undefined,
       image_url: (profileMeta as any)?.image_url || undefined,
+      birth_date: (profileMeta as any)?.birth_date || undefined,
+      gender: (profileMeta as any)?.gender || undefined,
     });
   }, [profileMeta]);
 
@@ -495,6 +497,8 @@ export default function ProfilePage() {
       phone: (profileMeta as any)?.phone || undefined,
       email: (profileMeta as any)?.email || undefined,
       website: (profileMeta as any)?.website || undefined,
+      birth_date: (profileMeta as any)?.birth_date || undefined,
+      gender: (profileMeta as any)?.gender || undefined,
     });
     setIsEditing(false);
   }
@@ -811,6 +815,41 @@ export default function ProfilePage() {
                       <input value={metaDraft.website || ''} onChange={(e)=> setMetaDraft(v=>({...v, website: e.target.value}))} placeholder="Website" className="text-sm text-gray-900 border rounded px-2 py-1" />
                     ) : (
                       <span className="text-sm text-gray-600">Website: {metaDraft.website || 'Not specified'}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    {isEditing ? (
+                      <input 
+                        type="date" 
+                        value={metaDraft.birth_date || ''} 
+                        onChange={(e)=> setMetaDraft(v=>({...v, birth_date: e.target.value}))} 
+                        className="text-sm text-gray-900 border rounded px-2 py-1" 
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-600">
+                        Birth Date: {metaDraft.birth_date ? new Date(metaDraft.birth_date).toLocaleDateString() : 'Not specified'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <User className="w-4 h-4 text-gray-400" />
+                    {isEditing ? (
+                      <select 
+                        value={metaDraft.gender || ''} 
+                        onChange={(e)=> setMetaDraft(v=>({...v, gender: e.target.value}))} 
+                        className="text-sm text-gray-900 border rounded px-2 py-1"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer-not-to-say">Prefer not to say</option>
+                      </select>
+                    ) : (
+                      <span className="text-sm text-gray-600">
+                        Gender: {metaDraft.gender ? metaDraft.gender.charAt(0).toUpperCase() + metaDraft.gender.slice(1) : 'Not specified'}
+                      </span>
                     )}
                   </div>
                   {isEditing && (

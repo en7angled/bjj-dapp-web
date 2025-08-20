@@ -359,13 +359,13 @@ export class BeltSystemAPI {
   }
 
   // Profile metadata (off-chain) via Next API
-  static async getProfileMetadata(profileId: string): Promise<{ profile_id: string; location?: string; phone?: string; email?: string; website?: string; updated_at?: string; }> {
+  static async getProfileMetadata(profileId: string): Promise<{ profile_id: string; location?: string; phone?: string; email?: string; website?: string; birth_date?: string; gender?: string; updated_at?: string; }> {
     const resp = await fetch(`/api/profile-metadata?id=${encodeURIComponent(profileId)}`, { cache: 'no-store' });
     if (!resp.ok) throw new Error(await resp.text());
     return resp.json();
   }
 
-  static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; image_url?: string; }): Promise<{ ok: boolean; updated_at: string }> {
+  static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; image_url?: string; birth_date?: string; gender?: string; }): Promise<{ ok: boolean; updated_at: string }> {
     // Ensure all named parameters exist (SQLite named params require presence)
     const body = {
       profile_id: payload.profile_id,
@@ -374,6 +374,8 @@ export class BeltSystemAPI {
       email: payload.email ?? null,
       website: payload.website ?? null,
       image_url: payload.image_url ?? null,
+      birth_date: payload.birth_date ?? null,
+      gender: payload.gender ?? null,
     };
     const resp = await fetch('/api/profile-metadata', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) throw new Error(await resp.text());

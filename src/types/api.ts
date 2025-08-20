@@ -122,6 +122,19 @@ export interface DatabaseError {
   details?: Record<string, unknown>;
 }
 
+// Profile metadata types
+export interface ProfileMetadata {
+  profile_id: string;
+  location?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  image_url?: string;
+  birth_date?: string;
+  gender?: string;
+  updated_at?: string;
+}
+
 // Cache types
 export interface CacheEntry<T> {
   data: T;

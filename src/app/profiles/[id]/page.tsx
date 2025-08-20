@@ -19,7 +19,9 @@ import {
   Mail,
   Globe,
   Copy,
-  Check
+  Check,
+  User,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { beltColors } from '../../../lib/utils';
 
@@ -212,7 +214,34 @@ export default function PublicProfilePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 sm:px-0">
           {/* Profile Metadata */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
+            {/* Personal Information */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-6 py-5">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
+                <div className="space-y-4">
+                  {metadata?.birth_date && (
+                    <div className="flex items-center space-x-3">
+                      <CalendarIcon className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        {new Date(metadata.birth_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                  {metadata?.gender && (
+                    <div className="flex items-center space-x-3">
+                      <User className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-600 capitalize">{metadata.gender}</span>
+                    </div>
+                  )}
+                  {(!metadata?.birth_date && !metadata?.gender) && (
+                    <p className="text-sm text-gray-500 italic">No personal information available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-5">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>

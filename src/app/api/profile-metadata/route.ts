@@ -13,6 +13,8 @@ type ProfileMetadata = {
   email?: string;
   website?: string;
   image_url?: string;
+  birth_date?: string;
+  gender?: string;
   updated_at?: string;
 };
 
@@ -63,6 +65,8 @@ function getDb(): SQLiteDatabase | null {
       email TEXT,
       website TEXT,
       image_url TEXT,
+      birth_date TEXT,
+      gender TEXT,
       updated_at TEXT
     )`).run();
     
@@ -170,14 +174,16 @@ export async function PUT(req: Request) {
       // Use transaction for better performance
       const transaction = sqlite.transaction(() => {
         sqlite
-          .prepare(`INSERT INTO profile_metadata (profile_id, location, phone, email, website, image_url, updated_at)
-                    VALUES (@profile_id, @location, @phone, @email, @website, @image_url, @updated_at)
+          .prepare(`INSERT INTO profile_metadata (profile_id, location, phone, email, website, image_url, birth_date, gender, updated_at)
+                    VALUES (@profile_id, @location, @phone, @email, @website, @image_url, @birth_date, @gender, @updated_at)
                     ON CONFLICT(profile_id) DO UPDATE SET
                       location=excluded.location,
                       phone=excluded.phone,
                       email=excluded.email,
                       website=excluded.website,
                       image_url=excluded.image_url,
+                      birth_date=excluded.birth_date,
+                      gender=excluded.gender,
                       updated_at=excluded.updated_at`)
           .run(body);
       });
