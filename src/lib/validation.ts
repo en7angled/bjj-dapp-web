@@ -94,7 +94,10 @@ export const VALIDATION_PATTERNS = {
   PHONE: /^\+?[\d\s\-\(\)]+$/,
   URL: /^https?:\/\/.+/,
   CARDANO_ADDRESS: /^addr[0-9a-z]+$/i,
-  PROFILE_ID: /^[0-9a-f]{56}\.[0-9a-f]+$/i,
+  // Accept either dotted form policyId.assetNameHex or a long hex string (no dot)
+  // Dotted: exactly 56-hex policy id + '.' + 1+ hex asset name
+  // Non-dotted: at least 57 hex characters (policy + name concatenated)
+  PROFILE_ID: /^([0-9a-f]{56}\.[0-9a-f]+|[0-9a-f]{57,})$/i,
   NAME: /^[\p{L}\s\-']+$/u, // Unicode letters, spaces, hyphens, apostrophes
   ALPHANUMERIC: /^[a-zA-Z0-9]+$/,
   NUMERIC: /^[0-9]+$/,
@@ -119,7 +122,7 @@ export const COMMON_RULES = {
   PROFILE_ID: {
     required: true,
     pattern: VALIDATION_PATTERNS.PROFILE_ID,
-    message: 'Please enter a valid profile ID'
+    message: 'Please enter a valid profile ID (policyId.assetNameHex or long hex)'
   },
   CARDANO_ADDRESS: {
     required: true,
@@ -132,6 +135,12 @@ export const COMMON_RULES = {
   URL: {
     pattern: VALIDATION_PATTERNS.URL,
     message: 'Please enter a valid URL'
+  },
+  OPTIONAL_URL: {
+    custom: (value: any) => {
+      if (!value || (typeof value === 'string' && value.trim() === '')) return null;
+      return VALIDATION_PATTERNS.URL.test(String(value)) ? null : 'Please enter a valid URL';
+    }
   }
 };
 

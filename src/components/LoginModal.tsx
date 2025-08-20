@@ -67,7 +67,7 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       lastName: COMMON_RULES.NAME,
       middleName: { pattern: VALIDATION_PATTERNS.NAME, maxLength: 50 },
       createDescription: COMMON_RULES.DESCRIPTION,
-      createImageUri: { pattern: VALIDATION_PATTERNS.URL },
+      createImageUri: COMMON_RULES.OPTIONAL_URL,
       usedAddresses: COMMON_RULES.REQUIRED,
       changeAddress: COMMON_RULES.REQUIRED,
       createAchievementDate: COMMON_RULES.REQUIRED
@@ -133,8 +133,13 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       
       // Get addresses
       const { usedAddresses: used, changeAddress: change } = await getWalletAddresses(connected);
-      setUsedAddresses(used.join('\n'));
+      const usedAddressesStr = used.join('\n');
+      setUsedAddresses(usedAddressesStr);
       setChangeAddress(change);
+      
+      // Update validation data with the new addresses
+      createValidation.setFieldValue('usedAddresses', usedAddressesStr);
+      createValidation.setFieldValue('changeAddress', change);
       
       return true;
     } catch (error) {
@@ -355,8 +360,13 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
 
       const used = await connected.getUsedAddresses();
       const change = await connected.getChangeAddress();
-      setUsedAddresses(used.join('\n'));
+      const usedAddressesStr = used.join('\n');
+      setUsedAddresses(usedAddressesStr);
       setChangeAddress(change);
+      
+      // Update validation data with the new addresses
+      createValidation.setFieldValue('usedAddresses', usedAddressesStr);
+      createValidation.setFieldValue('changeAddress', change);
     } catch (e) {
       setError('Failed to connect wallet');
     }
@@ -476,10 +486,13 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   useEffect(() => {
     if (mode !== 'create') return;
     if (initialUsedAddresses && usedAddresses === '') {
-      setUsedAddresses(initialUsedAddresses.join('\n'));
+      const addressesStr = initialUsedAddresses.join('\n');
+      setUsedAddresses(addressesStr);
+      createValidation.setFieldValue('usedAddresses', addressesStr);
     }
     if (initialChangeAddress && changeAddress === '') {
       setChangeAddress(initialChangeAddress);
+      createValidation.setFieldValue('changeAddress', initialChangeAddress);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialUsedAddresses, initialChangeAddress]);
@@ -578,19 +591,59 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                 {/* Create Profile Fields */}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">First Name</label>
-                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => { setFirstName(e.target.value); createValidation.setFieldValue('firstName', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('firstName')}
+                    placeholder="First name (letters only)"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('firstName') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('firstName') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('firstName')?.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Middle Name (optional)</label>
-                  <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Middle name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <input
+                    type="text"
+                    value={middleName}
+                    onChange={(e) => { setMiddleName(e.target.value); createValidation.setFieldValue('middleName', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('middleName')}
+                    placeholder="Middle name (letters only)"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('middleName') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('middleName') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('middleName')?.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Last Name</label>
-                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name (letters only)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => { setLastName(e.target.value); createValidation.setFieldValue('lastName', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('lastName')}
+                    placeholder="Last name (letters only)"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('lastName') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('lastName') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('lastName')?.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Description</label>
-                  <textarea value={createDescription} onChange={(e) => setCreateDescription(e.target.value)} rows={3} placeholder="Tell us about this profile" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <textarea
+                    value={createDescription}
+                    onChange={(e) => { setCreateDescription(e.target.value); createValidation.setFieldValue('createDescription', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('createDescription')}
+                    rows={3}
+                    placeholder="Tell us about this profile"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('createDescription') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('createDescription') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('createDescription')?.message}</p>
+                  )}
                 </div>
                 {profileType === 'Practitioner' && (
                   <div>
@@ -602,32 +655,66 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Achievement Date *</label>
-                  <input 
-                    type="datetime-local" 
-                    value={createAchievementDate} 
-                    onChange={(e) => setCreateAchievementDate(e.target.value)} 
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" 
+                  <input
+                    type="datetime-local"
+                    value={createAchievementDate}
+                    onChange={(e) => { setCreateAchievementDate(e.target.value); createValidation.setFieldValue('createAchievementDate', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('createAchievementDate')}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${createValidation.getFieldError('createAchievementDate') ? 'border-red-300' : 'border-gray-300'}`}
                   />
-                  <p className="text-xs text-gray-600 mt-1">When did you achieve your current rank?</p>
+                  {createValidation.getFieldError('createAchievementDate') ? (
+                    <p className="text-xs text-red-600 mt-1">{createValidation.getFieldError('createAchievementDate')?.message}</p>
+                  ) : (
+                    <p className="text-xs text-gray-600 mt-1">When did you achieve your current rank?</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Image URI (optional)</label>
                   <div className="flex items-center space-x-2">
                     <ImageIcon className="w-4 h-4 text-gray-400" />
-                    <input type="url" value={createImageUri} onChange={(e) => setCreateImageUri(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                    <input
+                      type="url"
+                      value={createImageUri}
+                      onChange={(e) => { setCreateImageUri(e.target.value); createValidation.setFieldValue('createImageUri', e.target.value); }}
+                      onBlur={() => createValidation.setFieldTouched('createImageUri')}
+                      placeholder="https://..."
+                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('createImageUri') ? 'border-red-300' : 'border-gray-300'}`}
+                    />
                   </div>
+                  {createValidation.getFieldError('createImageUri') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('createImageUri')?.message}</p>
+                  )}
                 </div>
-                <div className="p-3 bg-gray-100 border border-gray-300 rounded-md">
-                  <p className="text-xs text-gray-900">Provide the addresses from your wallet to build the transaction.</p>
+                <div className="p-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
+                  <p className="text-xs text-gray-900 dark:text-gray-100">Provide the addresses from your wallet to build the transaction.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Used Addresses (one per line)</label>
-                  <textarea value={usedAddresses} onChange={(e) => setUsedAddresses(e.target.value)} rows={3} placeholder="Paste used addresses (CBOR hex), one per line" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <textarea
+                    value={usedAddresses}
+                    onChange={(e) => { setUsedAddresses(e.target.value); createValidation.setFieldValue('usedAddresses', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('usedAddresses')}
+                    rows={3}
+                    placeholder="Paste used addresses (CBOR hex), one per line"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('usedAddresses') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('usedAddresses') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('usedAddresses')?.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Change Address</label>
-                  <input type="text" value={changeAddress} onChange={(e) => setChangeAddress(e.target.value)} placeholder="Paste change address (CBOR hex)" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600" />
+                  <input
+                    type="text"
+                    value={changeAddress}
+                    onChange={(e) => { setChangeAddress(e.target.value); createValidation.setFieldValue('changeAddress', e.target.value); }}
+                    onBlur={() => createValidation.setFieldTouched('changeAddress')}
+                    placeholder="Paste change address (CBOR hex)"
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600 ${createValidation.getFieldError('changeAddress') ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {createValidation.getFieldError('changeAddress') && (
+                    <p className="mt-1 text-xs text-red-600">{createValidation.getFieldError('changeAddress')?.message}</p>
+                  )}
                 </div>
 
                 {txStatus !== 'idle' && (
