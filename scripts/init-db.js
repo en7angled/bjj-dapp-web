@@ -19,8 +19,23 @@ db.prepare(`CREATE TABLE IF NOT EXISTS profile_metadata (
   email TEXT,
   website TEXT,
   image_url TEXT,
+  birth_date TEXT,
+  gender TEXT,
   updated_at TEXT
 )`).run();
+
+// Add missing columns if they don't exist (for existing databases)
+try {
+  db.prepare('ALTER TABLE profile_metadata ADD COLUMN birth_date TEXT').run();
+} catch (e) {
+  // Column already exists, ignore error
+}
+
+try {
+  db.prepare('ALTER TABLE profile_metadata ADD COLUMN gender TEXT').run();
+} catch (e) {
+  // Column already exists, ignore error
+}
 
 console.log('Initialized DB at', dbPath);
 
