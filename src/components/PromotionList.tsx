@@ -3,7 +3,7 @@
 import { BeltBadge } from './BeltDisplay';
 import { formatDate } from '../lib/utils';
 import { PromotionInformation } from '../types/api';
-import { TrendingUp, User, Award, Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { TrendingUp, User, Award, Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { ProfileName } from './ProfileName';
 
 interface PromotionListProps {
@@ -24,16 +24,6 @@ export function PromotionList({
   onPageChange
 }: PromotionListProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
-
-  const handleApprove = (promotionId: string) => {
-    // TODO: Implement approval logic
-    console.log('Approving promotion:', promotionId);
-  };
-
-  const handleReject = (promotionId: string) => {
-    // TODO: Implement rejection logic
-    console.log('Rejecting promotion:', promotionId);
-  };
 
   if (isLoading) {
     return (
@@ -99,8 +89,8 @@ export function PromotionList({
                           <User className="w-4 h-4 text-gray-400" />
                           <span className="font-medium">Achieved by:</span>
                         </div>
-                        <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          <ProfileName id={promotion.achieved_by_profile_id} className="font-mono text-xs" />
+                        <div className="ml-6 font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          <ProfileName id={promotion.achieved_by_profile_id} className="font-mono text-xs text-gray-900 dark:text-gray-100" />
                         </div>
                       </div>
 
@@ -109,34 +99,17 @@ export function PromotionList({
                           <Award className="w-4 h-4 text-gray-400" />
                           <span className="font-medium">Awarded by:</span>
                         </div>
-                        <div className="ml-6 font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          <ProfileName id={promotion.awarded_by_profile_id} className="font-mono text-xs" />
+                        <div className="ml-6 font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          <ProfileName id={promotion.awarded_by_profile_id} className="font-mono text-xs text-gray-900 dark:text-gray-100" />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 flex flex-col items-end space-y-2">
+                  <div className="flex-shrink-0 flex flex-col items-end">
                     <div className="text-xs text-gray-500">
                       <Calendar className="w-3 h-3 inline mr-1" />
                       {formatDate(promotion.achievement_date)}
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleApprove(promotion.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                      >
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleReject(promotion.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Reject
-                      </button>
                     </div>
                   </div>
                 </div>

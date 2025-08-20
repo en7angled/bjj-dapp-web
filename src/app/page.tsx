@@ -180,37 +180,9 @@ function DashboardContent() {
 
         {/* Recent Activity */}
         <div className="px-4 sm:px-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Belts */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Belts</h3>
-              <RecentBelts />
-            </div>
-
-            {/* Quick Stats */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Most Active Month</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Average Promotions/Day</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {data?.totalPromotionsCount ? Math.round(data.totalPromotionsCount / 30) : 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Network Growth</span>
-                  <span className="text-sm font-medium text-green-600">
-                    +{data?.monthlyGrowth || 0}% this month
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Belts</h3>
+            <RecentBelts />
           </div>
         </div>
       </main>

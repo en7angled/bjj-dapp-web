@@ -1,9 +1,11 @@
 'use client';
 
 import { ProfileSummary } from '../types/api';
-import { User, Building2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { User, Building2, ChevronLeft, ChevronRight, ExternalLink, Copy, Check } from 'lucide-react';
 import { ProfileName } from './ProfileName';
 import Link from 'next/link';
+import { useState } from 'react';
+import { truncateAddress } from '../lib/utils';
 
 interface ProfileListProps {
   profiles: ProfileSummary[];
@@ -23,6 +25,17 @@ export function ProfileList({
   onPageChange
 }: ProfileListProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy ID:', err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -79,10 +92,16 @@ export function ProfileList({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center space-x-3 mb-2">
+        <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-medium text-gray-900">
             {profile.name || 'Unnamed Practitioner'}
           </h3>
+          <Link href={`/profiles/${profile.id}`}>
+            <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
+              <span>View</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </Link>
         </div>
 
         <div className="text-sm text-gray-600 space-y-1">
@@ -90,18 +109,20 @@ export function ProfileList({
             <p className="text-gray-700">{profile.description}</p>
           )}
         </div>
-      </div>
-
-      <div className="flex-shrink-0 text-right">
-        <div className="text-xs text-gray-500 font-mono">
-          <ProfileName id={profile.id} className="font-mono text-xs" />
-        </div>
-        <Link href={`/profiles/${profile.id}`}>
-          <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
-            <span>View</span>
-            <ExternalLink className="w-3 h-3" />
+        <div className="text-xs text-gray-500 font-mono mt-2 flex items-center space-x-2">
+          <span>{truncateAddress(profile.id, 12)}</span>
+          <button
+            onClick={() => handleCopyId(profile.id)}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title="Copy profile ID"
+          >
+            {copiedId === profile.id ? (
+              <Check className="w-3 h-3 text-green-500" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
           </button>
-        </Link>
+        </div>
       </div>
     </div>
   );
@@ -128,13 +149,21 @@ export function ProfileList({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center space-x-3 mb-2">
-          <h3 className="text-lg font-medium text-gray-900">
-            {profile.name || 'Unnamed Organization'}
-          </h3>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Organization
-          </span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            <h3 className="text-lg font-medium text-gray-900">
+              {profile.name || 'Unnamed Organization'}
+            </h3>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Organization
+            </span>
+          </div>
+          <Link href={`/profiles/${profile.id}`}>
+            <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
+              <span>View</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </Link>
         </div>
 
         <div className="text-sm text-gray-600 space-y-1">
@@ -142,18 +171,20 @@ export function ProfileList({
             <p className="text-gray-700">{profile.description}</p>
           )}
         </div>
-      </div>
-
-      <div className="flex-shrink-0 text-right">
-        <div className="text-xs text-gray-500 font-mono">
-          <ProfileName id={profile.id} className="font-mono text-xs" />
-        </div>
-        <Link href={`/profiles/${profile.id}`}>
-          <button className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1">
-            <span>View</span>
-            <ExternalLink className="w-3 h-3" />
+        <div className="text-xs text-gray-500 font-mono mt-2 flex items-center space-x-2">
+          <span>{truncateAddress(profile.id, 12)}</span>
+          <button
+            onClick={() => handleCopyId(profile.id)}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title="Copy profile ID"
+          >
+            {copiedId === profile.id ? (
+              <Check className="w-3 h-3 text-green-500" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
           </button>
-        </Link>
+        </div>
       </div>
     </div>
   );

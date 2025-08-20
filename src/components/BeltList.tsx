@@ -131,7 +131,7 @@ export function BeltList({
         {/* Belt List */}
         <div className="space-y-4">
           {sortedBelts.map((belt) => (
-            <div key={belt.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+            <div key={belt.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-400 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <BeltBadge belt={belt.belt} />
