@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { BeltSystemAPI } from '../lib/api';
-import { X } from 'lucide-react';
+import { X, Zap, Key, Award } from 'lucide-react';
 import type { BJJBelt } from '../types/api';
+import { BrowserWallet, deserializeAddress } from '@meshsdk/core';
+import { Address, Transaction, TransactionWitnessSet } from '@emurgo/cardano-serialization-lib-browser';
+import { LoadingButton, ErrorState, SuccessState } from './LoadingStates';
+import { WalletSelector } from './WalletSelector';
+import { useGlobalData } from '../contexts/DashboardDataContext';
 
 type AwardBeltModalProps = {
   isOpen: boolean;
@@ -14,6 +19,7 @@ type AwardBeltModalProps = {
 };
 
 export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, currentUserBelt, onSuccess }: AwardBeltModalProps) {
+  const { invalidateBeltData, invalidatePromotionData } = useGlobalData();
   const [recipientId, setRecipientId] = useState('');
   const [belt, setBelt] = useState<BJJBelt>('White');
   const [achievementDate, setAchievementDate] = useState<string>(() => new Date().toISOString().replace(/\..+Z$/, 'Z'));
@@ -24,6 +30,8 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, currentUs
   const [txStatus, setTxStatus] = useState<'idle' | 'building' | 'ready' | 'submitting' | 'success' | 'error'>('idle');
   const [txUnsigned, setTxUnsigned] = useState('');
   const [txId, setTxId] = useState('');
+  const [wallet, setWallet] = useState<any>(null);
+  const [txWitness, setTxWitness] = useState<string>('');
 
   if (!isOpen) return null;
 
@@ -82,18 +90,27 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, currentUs
     }
   }
 
-  // Connect to the first available CIP-30 wallet and prefill addresses
+  // Handle wallet selection from WalletSelector
+  async function handleWalletSelect(connectedWallet: any) {
+    try {
+      setWallet(connectedWallet);
+      
+      // Get addresses
+      const used = await connectedWallet.getUsedAddresses();
+      const change = await connectedWallet.getChangeAddress();
+      setUsedAddresses(used.join('\n'));
+      setChangeAddress(change);
+      
+      setError(''); // Clear any previous errors
+    } catch (error) {
+      setError(`Failed to connect wallet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Connect to wallet (for backward compatibility)
   async function ensureWallet() {
     if (wallet) return wallet;
-    const available = await BrowserWallet.getAvailableWallets();
-    if (!available.length) throw new Error('No browser wallet found');
-    const w = await BrowserWallet.enable(available[0].name);
-    setWallet(w);
-    const used = await w.getUsedAddresses();
-    const change = await w.getChangeAddress();
-    setUsedAddresses(used.join('\n'));
-    setChangeAddress(change);
-    return w;
+    throw new Error('Please select a wallet first');
   }
 
   // Build an unsigned transaction representing a promotion action
@@ -223,8 +240,11 @@ export function AwardBeltModal({ isOpen, onClose, promotedByProfileId, currentUs
                 }
               }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-700" />
             </div>
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => ensureWallet().catch(err=>setError(err.message))} className="px-3 py-2 border rounded-md text-sm">{wallet ? 'Wallet Connected' : 'Connect Wallet'}</button>
+            <div>
+              <WalletSelector 
+                onWalletSelect={handleWalletSelect}
+                onError={setError}
+              />
             </div>
 
             {error && (

@@ -32,21 +32,23 @@
   "devDependencies": {
     "@emurgo/cardano-serialization-lib-nodejs": "^15.0.0",
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/chart.js": "^2.9.41",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "eslint-plugin-unused-imports": "^4.1.4",
+    "jsdom": "^26.1.0",
     "openapi-typescript-codegen": "^0.29.0",
     "prettier": "^3.6.2",
-    "vitest": "^2.0.5",
-    "@testing-library/react": "^16.0.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/user-event": "^14.6.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.0.5"
   }
 }

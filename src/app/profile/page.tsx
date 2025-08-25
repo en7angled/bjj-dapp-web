@@ -24,6 +24,7 @@ import {
   Check 
 } from 'lucide-react';
 import { AwardBeltModal } from '../../components/AwardBeltModal';
+import { WalletSelector } from '../../components/WalletSelector';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../config/api';
 import type { 
@@ -58,43 +59,25 @@ export default function ProfilePage() {
   const [copiedProfileId, setCopiedProfileId] = useState(false);
   const queryClient = useQueryClient();
 
-  async function connectFirstAvailableWallet() {
-    setWalletError(null);
+  // Handle wallet selection using the common selector
+  async function handleWalletSelect(connected: any) {
     try {
-      const { BrowserWallet } = await loadCardanoLibraries();
-      const available = await BrowserWallet.getAvailableWallets();
-
-      if (!available || available.length === 0) {
-        throw new Error('No CIP-30 wallet detected. Install Nami, Lace, Eternl, Flint, etc.');
+      setWalletError(null);
+      // Basic network validation
+      const nid = await connected.getNetworkId();
+      if (nid !== API_CONFIG.NETWORK_ID) {
+        throw new Error('Wallet network mismatch.');
       }
-      // Try enabling in order
-      let connected: any = null;
-      for (const w of available) {
-        try {
-          connected = await BrowserWallet.enable(w.name);
-          if (connected) break;
-        } catch (e) {
-          console.error('Enable failed for wallet', w.name, e);
-        }
-      }
-      if (!connected) {
-        const names = available.map(w => w.name).join(', ');
-        const msg = `Failed to connect wallets: ${names}`;
-        throw new Error(msg);
-      }
+      setWallet(connected);
+      // Prefill addresses for login/create flows
       try {
-        const nid = await connected.getNetworkId();
-        if (nid !== API_CONFIG.NETWORK_ID) {
-          throw new Error(`Wallet network mismatch. Expected ${API_CONFIG.NETWORK_ID === 0 ? 'testnet' : 'mainnet'}.`);
-        }
-      } catch (e) {
-        // propagate explicit error
-        throw e instanceof Error ? e : new Error('Unable to verify wallet network');
-      }
-      return connected;
-    } catch (error) {
-      setWalletError(error instanceof Error ? error.message : 'Failed to connect wallet');
-      throw error;
+        const used = await connected.getUsedAddresses();
+        const change = await connected.getChangeAddress();
+        setPrefillUsed(used);
+        setPrefillChange(change);
+      } catch {}
+    } catch (e: any) {
+      setWalletError(e?.message || 'Failed to connect wallet');
     }
   }
   const modalRef = useRef<HTMLDivElement>(null);
@@ -288,9 +271,7 @@ export default function ProfilePage() {
 
   async function ensureWalletConnected(): Promise<any> {
     if (wallet) return wallet;
-    const connected = await connectFirstAvailableWallet();
-    setWallet(connected);
-    return connected;
+    throw new Error('Please select a wallet first');
   }
 
   async function handleAcceptPromotion(promotionId: string) {
@@ -519,81 +500,65 @@ export default function ProfilePage() {
                 <p className="text-gray-600 mb-8">Connect a CIP-30 wallet to sign in. If no profile exists for your wallet, you can create one.</p>
                 
                 <div className="space-y-3">
-                  <button
-                    onClick={async () => {
+                  <WalletSelector
+                    onWalletSelect={async (connected) => {
+                      await handleWalletSelect(connected);
                       try {
-                        const connected = await connectFirstAvailableWallet();
-                        setWallet(connected);
-                        const used = await connected.getUsedAddresses();
-                        const change = await connected.getChangeAddress();
-                        setPrefillUsed(used);
-                        setPrefillChange(change);
-                        // Resolve profile by wallet assets
-                        try {
-                          const assets = await connected.getAssets();
-                          const policy = API_CONFIG.PROFILE_POLICY_ID;
-                          let foundProfileId: string | null = null;
-                          let foundType: 'Practitioner' | 'Organization' = 'Practitioner';
-                          if (policy) {
-                            // Build candidate dotted ids from all assets under policy
-                            const candidates: string[] = [];
-                            const seen = new Set<string>();
-                            const adjustAssetNameHex = (hex: string): string => {
-                              const lower = (hex || '').toLowerCase();
-                              if (lower.startsWith('000de14')) {
-                                return `000643b${lower.slice(7)}`;
-                              }
-                              return lower;
-                            };
-                            for (const a of assets) {
-                              const unit: string | undefined = (a as any)?.unit;
-                              if (!unit) continue;
-                              if (unit.startsWith(policy)) {
-                                const assetNameHex = unit.slice(policy.length);
-                                const original = `${policy}.${assetNameHex}`;
-                                const adjusted = `${policy}.${adjustAssetNameHex(assetNameHex)}`;
-                                // Prefer adjusted first when it differs
-                                if (adjusted !== original) {
-                                  if (!seen.has(adjusted)) { candidates.push(adjusted); seen.add(adjusted); }
-                                  if (!seen.has(original)) { candidates.push(original); seen.add(original); }
-                                } else {
-                                  if (!seen.has(original)) { candidates.push(original); seen.add(original); }
-                                }
+                        // After selecting a wallet, attempt automatic profile detection
+                        const assets = await connected.getAssets();
+                        const policy = API_CONFIG.PROFILE_POLICY_ID;
+                        let foundProfileId: string | null = null;
+                        let foundType: 'Practitioner' | 'Organization' = 'Practitioner';
+                        if (policy) {
+                          const candidates: string[] = [];
+                          const seen = new Set<string>();
+                          const adjustAssetNameHex = (hex: string): string => {
+                            const lower = (hex || '').toLowerCase();
+                            if (lower.startsWith('000de14')) {
+                              return `000643b${lower.slice(7)}`;
+                            }
+                            return lower;
+                          };
+                          for (const a of assets) {
+                            const unit: string | undefined = (a as any)?.unit;
+                            if (!unit) continue;
+                            if (unit.startsWith(policy)) {
+                              const assetNameHex = unit.slice(policy.length);
+                              const original = `${policy}.${assetNameHex}`;
+                              const adjusted = `${policy}.${adjustAssetNameHex(assetNameHex)}`;
+                              if (adjusted !== original) {
+                                if (!seen.has(adjusted)) { candidates.push(adjusted); seen.add(adjusted); }
+                                if (!seen.has(original)) { candidates.push(original); seen.add(original); }
+                              } else {
+                                if (!seen.has(original)) { candidates.push(original); seen.add(original); }
                               }
                             }
-                            console.debug('Profile detection candidates:', candidates);
-                            // Try practitioner first, then organization
-                            for (const id of candidates) {
-                              try {
-                                const pr = await fetch(`/api/practitioner/${encodeURIComponent(id)}`);
-                                if (pr.ok) { foundProfileId = id; foundType = 'Practitioner'; break; }
-                              } catch {}
-                              try {
-                                const org = await fetch(`/api/organization/${encodeURIComponent(id)}`);
-                                if (org.ok) { foundProfileId = id; foundType = 'Organization'; break; }
-                              } catch {}
-                            }
                           }
-                          if (foundProfileId) {
-                            await login(foundProfileId, foundType);
-                            return;
+                          for (const id of candidates) {
+                            try {
+                              const pr = await fetch(`/api/practitioner/${encodeURIComponent(id)}`);
+                              if (pr.ok) { foundProfileId = id; foundType = 'Practitioner'; break; }
+                            } catch {}
+                            try {
+                              const org = await fetch(`/api/organization/${encodeURIComponent(id)}`);
+                              if (org.ok) { foundProfileId = id; foundType = 'Organization'; break; }
+                            } catch {}
                           }
-                        } catch (e) {
-                          console.warn('Asset lookup failed, falling back to create flow', e);
                         }
-                        // No profile asset found; open create flow
-                        setLoginMode('create');
-                        setShowAuthModal(true);
-                        setModalVisible(true);
-                      } catch (e: any) {
-                        console.error('Wallet connect failed', e);
-                        setWalletError(e?.message || 'Wallet connect failed');
+                        if (foundProfileId) {
+                          await login(foundProfileId, foundType);
+                          return;
+                        }
+                      } catch (e) {
+                        console.warn('Asset lookup failed, falling back to create flow', e);
                       }
+                      // No profile asset found; open create flow
+                      setLoginMode('create');
+                      setShowAuthModal(true);
+                      setModalVisible(true);
                     }}
-                    className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                  >
-                    Connect Wallet
-                  </button>
+                    onError={(err) => setWalletError(err)}
+                  />
                 </div>
                 
                 {walletError && (
@@ -679,6 +644,16 @@ export default function ProfilePage() {
                   Award Belt
                 </button>
               )}
+
+              {/* Persistent Wallet Selector */}
+              <div className="w-56">
+                <WalletSelector
+                  onWalletSelect={async (connected) => {
+                    await handleWalletSelect(connected);
+                  }}
+                  onError={(err) => setWalletError(err)}
+                />
+              </div>
               
               <button
                 onClick={handleLogout}
@@ -1012,6 +987,7 @@ export default function ProfilePage() {
           isOpen={showAwardModal}
           onClose={() => setShowAwardModal(false)}
           promotedByProfileId={profileId!}
+          currentUserBelt={(profile && 'current_rank' in profile && profile.current_rank?.belt) ? profile.current_rank.belt as BJJBelt : null}
           onSuccess={(txid) => setLastTxId(txid)}
         />
       )}

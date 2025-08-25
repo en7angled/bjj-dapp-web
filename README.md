@@ -67,6 +67,17 @@ Client calls (in `src/lib/api.ts`) target these routes; no Basic Auth is exposed
 - Off-chain profile metadata stored in SQLite at `data/metadata.db` via `/api/profile-metadata`.
 - Profile images stored under `public/uploads/` (resized WebP), uploaded via `/api/profile-image`.
 
+### Wallet Integration
+The app supports multiple CIP-30 compatible Cardano wallets:
+- **Eternl** (🔵) - Recommended for advanced users
+- **Nami** (🔷) - Popular and user-friendly
+- **Lace** (💎) - Official Daedalus companion
+- **Flint** (🔥) - Lightweight and fast
+- **Yoroi** (🟡) - Mobile-first wallet
+- **Typhon** (🌪️) - Feature-rich wallet
+
+Users can select their preferred wallet from a dropdown menu when connecting. If only one wallet is detected, it will be auto-selected for convenience.
+
 ### Notes
 - Native modules: `better-sqlite3`, `sharp` are built in the Docker image. If building on host, you may need build-essential and Python.
 - If you change env values, rebuild or restart the container: `docker compose up -d --build`.

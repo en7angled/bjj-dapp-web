@@ -86,8 +86,9 @@ export function createTransactionError(
   };
 }
 
-// Enhanced wallet connection with better error handling
-export async function connectWalletWithRetry(
+// Connect to a specific wallet by name
+export async function connectToSpecificWallet(
+  walletName: string,
   maxRetries: number = 3,
   retryDelay: number = 1000
 ): Promise<any> {
@@ -100,6 +101,83 @@ export async function connectWalletWithRetry(
       
       if (!available || available.length === 0) {
         throw new Error('No CIP-30 wallet detected');
+      }
+      
+      // Check if the requested wallet is available
+      const targetWallet = available.find(wallet => wallet.name === walletName);
+      if (!targetWallet) {
+        throw new Error(`Wallet "${walletName}" is not available. Available wallets: ${available.map(w => w.name).join(', ')}`);
+      }
+      
+      // Try to connect to the specific wallet
+      const connected = await BrowserWallet.enable(walletName);
+      if (connected) {
+        walletLogger.info('Wallet connected successfully', { wallet: walletName });
+        return connected;
+      } else {
+        throw new Error(`Failed to connect to ${walletName}`);
+      }
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown connection error');
+      
+      if (attempt < maxRetries) {
+        walletLogger.warn('Wallet connection attempt failed, retrying', lastError, { wallet: walletName, attempt, maxRetries });
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+  }
+  
+  throw lastError || new Error(`Wallet connection failed after all retries for ${walletName}`);
+}
+
+// Get available wallets
+export async function getAvailableWallets(): Promise<{ name: string; icon?: string }[]> {
+  try {
+    const { BrowserWallet } = await import('@meshsdk/core');
+    const available = await BrowserWallet.getAvailableWallets();
+    return available || [];
+  } catch (error) {
+    walletLogger.error('Failed to get available wallets', error instanceof Error ? error : new Error('Unknown error'));
+    return [];
+  }
+}
+
+// Enhanced wallet connection with better error handling
+export async function connectWalletWithRetry(
+  maxRetries: number = 3,
+  retryDelay: number = 1000,
+  preferredWallet?: string
+): Promise<any> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const { BrowserWallet } = await import('@meshsdk/core');
+      const available = await BrowserWallet.getAvailableWallets();
+      
+      if (!available || available.length === 0) {
+        throw new Error('No CIP-30 wallet detected');
+      }
+      
+      // If a preferred wallet is specified, try it first
+      if (preferredWallet) {
+        const preferred = available.find(wallet => wallet.name === preferredWallet);
+        if (preferred) {
+          try {
+            const connected = await BrowserWallet.enable(preferredWallet);
+            if (connected) {
+              walletLogger.info('Preferred wallet connected successfully', { wallet: preferredWallet });
+              return connected;
+            }
+          } catch (walletError) {
+            walletLogger.warn('Failed to connect to preferred wallet', walletError instanceof Error ? walletError : new Error('Unknown wallet error'), {
+              wallet: preferredWallet,
+              attempt
+            });
+            lastError = walletError instanceof Error ? walletError : new Error('Preferred wallet connection failed');
+          }
+        }
       }
       
       // Try each available wallet

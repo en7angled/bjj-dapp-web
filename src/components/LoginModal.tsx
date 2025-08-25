@@ -18,6 +18,7 @@ import {
   createWalletError,
   getErrorSuggestions 
 } from '../lib/wallet-utils';
+import { WalletSelector } from './WalletSelector';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -77,7 +78,6 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
   const { login } = useAuth();
   const { invalidateProfileData } = useGlobalData();
   const [wallet, setWallet] = useState<BrowserWallet | null>(null);
-  const [wallets, setWallets] = useState<{ name: string }[]>([]);
 
   async function copyToClipboard(text: string) {
     try {
@@ -346,20 +346,16 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
     }
   };
 
-  // Connect to CIP-30 wallet and prefill addresses
-  async function handleConnectWallet() {
+  // Handle wallet selection from WalletSelector
+  async function handleWalletSelect(connectedWallet: any) {
     try {
-      const available = await BrowserWallet.getAvailableWallets();
-      setWallets(available);
-      if (available.length === 0) {
-        setError('No browser wallet found');
-        return;
-      }
-      const connected = await BrowserWallet.enable(available[0].name);
-      setWallet(connected);
-
-      const used = await connected.getUsedAddresses();
-      const change = await connected.getChangeAddress();
+      setWallet(connectedWallet);
+      
+      // Validate network
+      await validateWalletNetwork(connectedWallet, API_CONFIG.NETWORK_ID);
+      
+      // Get addresses
+      const { usedAddresses: used, changeAddress: change } = await getWalletAddresses(connectedWallet);
       const usedAddressesStr = used.join('\n');
       setUsedAddresses(usedAddressesStr);
       setChangeAddress(change);
@@ -367,8 +363,17 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
       // Update validation data with the new addresses
       createValidation.setFieldValue('usedAddresses', usedAddressesStr);
       createValidation.setFieldValue('changeAddress', change);
-    } catch (e) {
-      setError('Failed to connect wallet');
+      
+      setError(''); // Clear any previous errors
+    } catch (error) {
+      const walletError = createWalletError(
+        error instanceof Error && error.message.includes('No CIP-30') ? 'NO_WALLET' :
+        error instanceof Error && error.message.includes('Network mismatch') ? 'NETWORK_MISMATCH' :
+        'CONNECTION_FAILED',
+        error instanceof Error ? error.message : 'Failed to connect wallet'
+      );
+      
+      setError(walletError.message);
     }
   }
 
@@ -577,13 +582,11 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                     <p className="mt-1 text-xs text-gray-700">{profileType === 'Practitioner' ? 'This is your unique practitioner identifier' : 'This is your unique organization identifier'}</p>
                   )}
                 </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <button type="button" onClick={ensureWalletConnected} className="px-3 py-2 border rounded-md text-sm">
-                    {wallet ? 'Wallet Connected' : 'Connect Wallet'}
-                  </button>
-                   {wallets.length > 0 && !wallet && (
-                    <span className="text-xs text-gray-600">Detected {wallets.length} wallet(s)</span>
-                  )}
+                <div className="mt-3">
+                  <WalletSelector 
+                    onWalletSelect={handleWalletSelect}
+                    onError={setError}
+                  />
                 </div>
               </>
             ) : (
@@ -757,9 +760,12 @@ export function LoginModal({ isOpen, onClose, mode = 'signin', onModeChange, ini
                       <button type="button" onClick={() => copyToClipboard(txUnsigned)} className="text-xs text-blue-600 hover:text-blue-500">Copy</button>
                     </div>
                     <textarea value={txUnsigned} readOnly rows={6} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-xs font-mono leading-snug whitespace-pre-wrap break-all overflow-auto max-h-48 text-gray-900" />
-                    <div className="mt-2 flex items-center justify-between">
-                      <button type="button" onClick={handleConnectWallet} className="px-3 py-2 border rounded-md text-sm">{wallet ? 'Wallet Connected' : 'Connect Wallet'}</button>
-                       {wallets.length > 0 && !wallet && <span className="text-xs text-gray-600">Detected {wallets.length} wallet(s)</span>}
+                    <div className="mt-2">
+                      <WalletSelector 
+                        onWalletSelect={handleWalletSelect}
+                        onError={setError}
+                        className="mb-2"
+                      />
                     </div>
                     {txStatus === 'ready' && wallet && (
                       <div className="mt-2">
