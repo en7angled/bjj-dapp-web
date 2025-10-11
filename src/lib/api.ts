@@ -10,7 +10,6 @@ import type {
   ProfileSummary
 } from '../types/api';
 
-import { API_CONFIG } from '../config/api';
 
 export class BeltSystemAPI {
   // Unified in-memory and localStorage-backed cache for full profile objects

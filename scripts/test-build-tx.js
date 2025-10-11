@@ -4,7 +4,7 @@ const http = require('http');
 const { Address } = require('@emurgo/cardano-serialization-lib-nodejs');
 
 const BASE_URL = process.env.API_URL || 'https://bjjserver-995707778143.europe-west1.run.app';
-const AUTH = Buffer.from('cardano:lovelace').toString('base64');
+const AUTH = Buffer.from(`${process.env.API_USER || ''}:${process.env.API_PASS || ''}`).toString('base64');
 
 function toHex(addr) {
   if (!addr) return '';

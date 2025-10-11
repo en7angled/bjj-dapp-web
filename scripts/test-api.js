@@ -17,8 +17,10 @@ function makeRequest(url) {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https:') ? https : http;
     
-    // Add basic authentication headers
-    const auth = Buffer.from('cardano:lovelace').toString('base64');
+    // Add basic authentication headers from environment variables
+    const username = process.env.API_USER || '';
+    const password = process.env.API_PASS || '';
+    const auth = Buffer.from(`${username}:${password}`).toString('base64');
     const options = {
       headers: {
         'Authorization': `Basic ${auth}`

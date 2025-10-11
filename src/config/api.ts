@@ -5,8 +5,9 @@ export const API_CONFIG = {
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 0,
   AUTH: {
-    USERNAME: 'cardano',
-    PASSWORD: 'lovelace'
+    // Use server-side env vars; avoid exposing credentials in the client bundle
+    USERNAME: process.env.API_USER || '',
+    PASSWORD: process.env.API_PASS || ''
   },
   // Chain-related config (profile asset detection)
   PROFILE_POLICY_ID: process.env.NEXT_PUBLIC_PROFILE_POLICY_ID || '',
