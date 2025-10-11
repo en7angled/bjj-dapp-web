@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: en7angled/bjj-dapp-web
+  IMAGE_NAME: mariusgeorgescu/bjj-dapp-web
 
 jobs:
   build-and-push:
