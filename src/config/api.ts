@@ -1,7 +1,7 @@
 // API Configuration
 // Update this URL to match your backend server
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bjjserver-995707778143.europe-west1.run.app',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bjjbackend.cardano.vip',
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 0,
   AUTH: {
