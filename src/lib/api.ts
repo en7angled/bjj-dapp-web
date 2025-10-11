@@ -11,6 +11,31 @@ import type {
 } from '../types/api';
 
 
+// Helper function to handle API responses and convert error objects to thrown errors
+async function handleApiResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData && typeof errorData === 'object' && 'error' in errorData) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // If we can't parse the error response, use the status text
+      errorMessage = response.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+  
+  const data = await response.json();
+  // Check if the response is an error object even with 200 status
+  if (data && typeof data === 'object' && 'error' in data && !Array.isArray(data)) {
+    throw new Error(data.error);
+  }
+  
+  return data;
+}
+
 export class BeltSystemAPI {
   // Unified in-memory and localStorage-backed cache for full profile objects
   private static profileCache = new Map<string, { data: PractitionerProfileInformation; expires: number }>();
@@ -136,7 +161,8 @@ export class BeltSystemAPI {
     searchParams.append('order_by', orderBy);
     searchParams.append('order', order);
 
-    return fetch(`/api/belts?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/belts?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<RankInformation[]>(response);
   }
 
   // Get belts count
@@ -161,13 +187,15 @@ export class BeltSystemAPI {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
 
-    return fetch(`/api/belts/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/belts/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<number>(response);
   }
 
   // Get belt frequency distribution
   static async getBeltsFrequency(): Promise<BeltFrequency[]> {
-    const response = await fetch('/api/belts/frequency', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(r => r.json()) as [BJJBelt, number][];
-    return response.map(([belt, count]) => ({ belt, count }));
+    const response = await fetch('/api/belts/frequency', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    const data = await handleApiResponse<[BJJBelt, number][]>(response);
+    return data.map(([belt, count]) => ({ belt, count }));
   }
 
   // Get practitioner profile
@@ -179,10 +207,7 @@ export class BeltSystemAPI {
     if (cached && cached.expires > now) return cached.data as PractitionerProfileInformation;
     // Use Next.js API proxy to avoid CORS
     const resp = await fetch(`/api/practitioner/${encodeURIComponent(profileId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!resp.ok) {
-      throw new Error(await resp.text());
-    }
-    const data = await resp.json();
+    const data = await handleApiResponse<PractitionerProfileInformation>(resp);
     this.profileCache.set(cacheKey, { data, expires: now + this.profileTtlMs });
     this.saveProfileCacheToStorage();
     return data;
@@ -216,7 +241,8 @@ export class BeltSystemAPI {
     if (params?.order_by) searchParams.append('order_by', params.order_by);
     if (params?.order) searchParams.append('order', params.order);
 
-    return fetch(`/api/promotions?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/promotions?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<PromotionInformation[]>(response);
   }
 
   // Get promotions count
@@ -241,7 +267,8 @@ export class BeltSystemAPI {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
 
-    return fetch(`/api/promotions/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/promotions/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<number>(response);
   }
 
   // Build transaction
@@ -360,8 +387,7 @@ export class BeltSystemAPI {
   // Profile metadata (off-chain) via Next API
   static async getProfileMetadata(profileId: string): Promise<{ profile_id: string; location?: string; phone?: string; email?: string; website?: string; birth_date?: string; gender?: string; updated_at?: string; }> {
     const resp = await fetch(`/api/profile-metadata?id=${encodeURIComponent(profileId)}`, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(await resp.text());
-    return resp.json();
+    return handleApiResponse<{ profile_id: string; location?: string; phone?: string; email?: string; website?: string; birth_date?: string; gender?: string; updated_at?: string; }>(resp);
   }
 
   static async putProfileMetadata(payload: { profile_id: string; location?: string; phone?: string; email?: string; website?: string; image_url?: string; birth_date?: string; gender?: string; }): Promise<{ ok: boolean; updated_at: string }> {
@@ -377,8 +403,7 @@ export class BeltSystemAPI {
       gender: payload.gender ?? null,
     };
     const resp = await fetch('/api/profile-metadata', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!resp.ok) throw new Error(await resp.text());
-    return resp.json();
+    return handleApiResponse<{ ok: boolean; updated_at: string }>(resp);
   }
 
   static async uploadProfileImage(profileId: string, file: File): Promise<{ ok: true; image_url: string }> {
@@ -386,8 +411,7 @@ export class BeltSystemAPI {
     data.append('profile_id', profileId);
     data.append('file', file);
     const resp = await fetch('/api/profile-image', { method: 'POST', body: data });
-    if (!resp.ok) throw new Error(await resp.text());
-    return resp.json();
+    return handleApiResponse<{ ok: true; image_url: string }>(resp);
   }
 
   // Profile-related endpoints
@@ -413,7 +437,8 @@ export class BeltSystemAPI {
     if (params?.description) searchParams.append('description', params.description);
     if (params?.order_by) searchParams.append('order_by', params.order_by);
     if (params?.order) searchParams.append('order', params.order);
-    return fetch(`/api/profiles?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/profiles?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<ProfileSummary[]>(response);
   }
 
   static async getProfilesCount(params?: {
@@ -434,7 +459,8 @@ export class BeltSystemAPI {
     }
     if (params?.name) searchParams.append('name', params.name);
     if (params?.description) searchParams.append('description', params.description);
-    return fetch(`/api/profiles/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } }).then(r => r.json());
+    const response = await fetch(`/api/profiles/count?${searchParams.toString()}`, { headers: { Accept: 'application/json' } });
+    return handleApiResponse<number>(response);
   }
 
   // Fetch all profiles by paging through results; use cautiously
