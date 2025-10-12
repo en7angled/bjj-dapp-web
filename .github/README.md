@@ -21,7 +21,8 @@ Automatically builds and publishes Docker images to Docker Hub when code is push
 **Registry:** `docker.io/mariusgeorgescu/bjj-dapp-web`
 
 **Kubernetes Integration:**
-- Automatically updates manifests in [mariusgeorgescu/apps-k8s-configs](https://github.com/mariusgeorgescu/apps-k8s-configs)
+- Automatically updates `apps/bjj-dapp-web/dev/kustomization.yaml` in [mariusgeorgescu/apps-k8s-configs](https://github.com/mariusgeorgescu/apps-k8s-configs)
+- Updates the `newTag` field with commit-based image tags
 - Creates pull requests for image tag updates
 - Only triggers on `main` and `develop` branch pushes
 

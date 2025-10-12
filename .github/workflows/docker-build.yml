@@ -94,11 +94,23 @@ jobs:
         run: |
           cd k8s-configs
           
-          # Find and update bjj-dapp-web image references
-          find . -name "*.yaml" -o -name "*.yml" | xargs grep -l "mariusgeorgescu/bjj-dapp-web" | while read file; do
-            echo "Updating $file"
-            sed -i "s|mariusgeorgescu/bjj-dapp-web:[^[:space:]]*|mariusgeorgescu/bjj-dapp-web:${{ steps.image-tag.outputs.tag }}|g" "$file"
-          done
+          # Update specific kustomization.yaml file for bjj-dapp-web dev environment
+          TARGET_FILE="apps/bjj-dapp-web/dev/kustomization.yaml"
+          
+          if [ -f "$TARGET_FILE" ]; then
+            echo "Updating $TARGET_FILE"
+            # Update the newTag field in kustomization.yaml
+            sed -i "s|newTag:.*|newTag: ${{ steps.image-tag.outputs.tag }}|g" "$TARGET_FILE"
+            
+            # Also update any direct image references if they exist
+            sed -i "s|mariusgeorgescu/bjj-dapp-web:[^[:space:]]*|mariusgeorgescu/bjj-dapp-web:${{ steps.image-tag.outputs.tag }}|g" "$TARGET_FILE"
+            
+            echo "Updated image tag to: ${{ steps.image-tag.outputs.tag }}"
+            cat "$TARGET_FILE"
+          else
+            echo "Target file $TARGET_FILE not found"
+            exit 1
+          fi
           
           # Check if there are any changes
           if git diff --quiet; then
@@ -122,13 +134,20 @@ jobs:
             **Commit:** `${{ github.sha }}`
             
             ### Changes
-            - Updated bjj-dapp-web image tag in Kubernetes manifests
+            - Updated bjj-dapp-web image tag in `apps/bjj-dapp-web/dev/kustomization.yaml`
+            - Modified `newTag` field to use new commit-based tag
             - Triggered by push to `${{ github.ref_name }}` branch
+            
+            ### Files Modified
+            - `apps/bjj-dapp-web/dev/kustomization.yaml`
             
             ### Verification
             ```bash
             # Pull the new image
             docker pull mariusgeorgescu/bjj-dapp-web:${{ steps.image-tag.outputs.tag }}
+            
+            # Apply the updated kustomization
+            kubectl apply -k apps/bjj-dapp-web/dev/
             ```
             
             ---
