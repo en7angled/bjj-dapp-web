@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../../../config/api';
+import { getApiConfig } from '../../../config/api';
 import { apiLogger } from '../../../lib/logger';
 import type { APIError } from '../../../types/api';
 
@@ -9,8 +9,9 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
 export async function GET(req: Request) {
   const incoming = new URL(req.url);
   const qs = incoming.search || '';
-  const url = `${API_CONFIG.BASE_URL}/belts${qs}`;
-  const auth = `Basic ${Buffer.from(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`).toString('base64')}`;
+  const config = getApiConfig(); // Get runtime config
+  const url = `${config.BASE_URL}/belts${qs}`;
+  const auth = `Basic ${Buffer.from(`${config.AUTH.USERNAME}:${config.AUTH.PASSWORD}`).toString('base64')}`;
   
   // Check cache for deduplication
   const cacheKey = `belts:${qs}`;

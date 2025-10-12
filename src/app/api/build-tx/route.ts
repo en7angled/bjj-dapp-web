@@ -1,15 +1,16 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-import { API_CONFIG } from '../../../config/api';
+import { getApiConfig } from '../../../config/api';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     console.log('build-tx request body:', JSON.stringify(body, null, 2));
-    const auth = Buffer.from(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`).toString('base64');
+    const config = getApiConfig(); // Get runtime config
+    const auth = Buffer.from(`${config.AUTH.USERNAME}:${config.AUTH.PASSWORD}`).toString('base64');
 
-    const res = await fetch(`${API_CONFIG.BASE_URL}/build-tx`, {
+    const res = await fetch(`${config.BASE_URL}/build-tx`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${auth}`,

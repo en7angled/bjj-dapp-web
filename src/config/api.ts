@@ -1,18 +1,24 @@
-// API Configuration
-// Update this URL to match your backend server
-export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bjjbackend.cardano.vip',
-  TIMEOUT: 30000,
-  RETRY_ATTEMPTS: 0,
-  AUTH: {
-    // Use server-side env vars; avoid exposing credentials in the client bundle
-    USERNAME: process.env.API_USER || '',
-    PASSWORD: process.env.API_PASS || ''
-  },
-  // Chain-related config (profile asset detection)
-  PROFILE_POLICY_ID: process.env.NEXT_PUBLIC_PROFILE_POLICY_ID || '',
-  NETWORK_ID: Number(process.env.NEXT_PUBLIC_NETWORK_ID || '1'), // 0 testnet, 1 mainnet
-};
+// API Configuration - Runtime resolution for server-side
+// This ensures environment variables are read at runtime, not build time
+export function getApiConfig() {
+  return {
+    BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bjjbackend.cardano.vip',
+    TIMEOUT: 30000,
+    RETRY_ATTEMPTS: 0,
+    AUTH: {
+      // Use server-side env vars; avoid exposing credentials in the client bundle
+      USERNAME: process.env.API_USER || '',
+      PASSWORD: process.env.API_PASS || ''
+    },
+    // Chain-related config (profile asset detection)
+    PROFILE_POLICY_ID: process.env.NEXT_PUBLIC_PROFILE_POLICY_ID || '',
+    NETWORK_ID: Number(process.env.NEXT_PUBLIC_NETWORK_ID || '1'), // 0 testnet, 1 mainnet
+  };
+}
+
+// For backward compatibility, export a default config
+// Note: This will still use build-time values for client-side code
+export const API_CONFIG = getApiConfig();
 
 // Common API endpoints
 export const API_ENDPOINTS = {
