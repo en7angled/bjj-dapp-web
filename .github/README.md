@@ -6,7 +6,7 @@ This directory contains GitHub Actions workflows for automated CI/CD.
 
 ### Docker Build (`docker-build.yml`)
 
-Automatically builds and publishes Docker images to Docker Hub when code is pushed to `main` or `develop` branches.
+Automatically builds and publishes Docker images to Docker Hub when code is pushed to `main` or `develop` branches, then creates a pull request to update Kubernetes manifests.
 
 **Triggers:**
 - Push to `main` or `develop` branches
@@ -18,7 +18,12 @@ Automatically builds and publishes Docker images to Docker Hub when code is push
 - `latest` - For main branch (default branch)
 - `pr-<pr-number>` - For pull requests
 
-**Registry:** `docker.io/en7angled/bjj-dapp-web`
+**Registry:** `docker.io/mariusgeorgescu/bjj-dapp-web`
+
+**Kubernetes Integration:**
+- Automatically updates manifests in [mariusgeorgescu/apps-k8s-configs](https://github.com/mariusgeorgescu/apps-k8s-configs)
+- Creates pull requests for image tag updates
+- Only triggers on `main` and `develop` branch pushes
 
 ## Usage
 
@@ -26,13 +31,13 @@ Images are automatically built and published. To use a specific version:
 
 ```bash
 # Latest main branch
-docker pull en7angled/bjj-dapp-web:latest
+docker pull mariusgeorgescu/bjj-dapp-web:latest
 
 # Specific commit
-docker pull en7angled/bjj-dapp-web:main-abc1234
+docker pull mariusgeorgescu/bjj-dapp-web:main-abc1234
 
 # Develop branch
-docker pull en7angled/bjj-dapp-web:develop-xyz5678
+docker pull mariusgeorgescu/bjj-dapp-web:develop-xyz5678
 ```
 
 ## Configuration
@@ -40,5 +45,19 @@ docker pull en7angled/bjj-dapp-web:develop-xyz5678
 The workflow uses placeholder values for API credentials during build. For production deployments, override these environment variables:
 
 ```bash
-docker run -e API_USER=your-user -e API_PASS=your-pass en7angled/bjj-dapp-web:latest
+docker run -e API_USER=your-user -e API_PASS=your-pass mariusgeorgescu/bjj-dapp-web:latest
 ```
+
+## Required GitHub Secrets
+
+The workflow requires these secrets to be configured in the repository settings:
+
+- `DOCKERHUB_USERNAME` - Your Docker Hub username
+- `DOCKERHUB_TOKEN` - Your Docker Hub access token
+- `K8S_REPO_TOKEN` - GitHub Personal Access Token with access to mariusgeorgescu/apps-k8s-configs
+
+### Setting up K8S_REPO_TOKEN
+
+1. Go to GitHub Settings → Developer settings → Personal access tokens
+2. Create a new token with `repo` permissions
+3. Add it as `K8S_REPO_TOKEN` secret in this repository

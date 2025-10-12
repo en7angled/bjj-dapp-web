@@ -65,3 +65,73 @@ jobs:
 
       - name: Output image digest
         run: echo ${{ steps.build.outputs.digest }}
+
+  update-k8s-manifests:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Extract image tag
+        id: image-tag
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "tag=main-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "tag=develop-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "branch=develop" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout k8s configs repository
+        uses: actions/checkout@v4
+        with:
+          repository: mariusgeorgescu/apps-k8s-configs
+          token: ${{ secrets.K8S_REPO_TOKEN }}
+          path: k8s-configs
+
+      - name: Update bjj-dapp-web image tag
+        run: |
+          cd k8s-configs
+          
+          # Find and update bjj-dapp-web image references
+          find . -name "*.yaml" -o -name "*.yml" | xargs grep -l "mariusgeorgescu/bjj-dapp-web" | while read file; do
+            echo "Updating $file"
+            sed -i "s|mariusgeorgescu/bjj-dapp-web:[^[:space:]]*|mariusgeorgescu/bjj-dapp-web:${{ steps.image-tag.outputs.tag }}|g" "$file"
+          done
+          
+          # Check if there are any changes
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          path: k8s-configs
+          token: ${{ secrets.K8S_REPO_TOKEN }}
+          commit-message: "Update bjj-dapp-web image to ${{ steps.image-tag.outputs.tag }}"
+          title: "🚀 Update bjj-dapp-web image to ${{ steps.image-tag.outputs.tag }}"
+          body: |
+            ## 🐳 Docker Image Update
+            
+            **Repository:** `mariusgeorgescu/bjj-dapp-web`
+            **New Tag:** `${{ steps.image-tag.outputs.tag }}`
+            **Branch:** `${{ steps.image-tag.outputs.branch }}`
+            **Commit:** `${{ github.sha }}`
+            
+            ### Changes
+            - Updated bjj-dapp-web image tag in Kubernetes manifests
+            - Triggered by push to `${{ github.ref_name }}` branch
+            
+            ### Verification
+            ```bash
+            # Pull the new image
+            docker pull mariusgeorgescu/bjj-dapp-web:${{ steps.image-tag.outputs.tag }}
+            ```
+            
+            ---
+            *This PR was automatically created by GitHub Actions*
+          branch: update-bjj-dapp-web-${{ steps.image-tag.outputs.tag }}
+          delete-branch: true
