@@ -43,7 +43,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix={{branch}}-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -75,11 +75,12 @@ jobs:
       - name: Extract image tag
         id: image-tag
         run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "tag=main-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "tag=main-${SHORT_SHA}" >> $GITHUB_OUTPUT
             echo "branch=main" >> $GITHUB_OUTPUT
           else
-            echo "tag=develop-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "tag=develop-${SHORT_SHA}" >> $GITHUB_OUTPUT
             echo "branch=develop" >> $GITHUB_OUTPUT
           fi
 

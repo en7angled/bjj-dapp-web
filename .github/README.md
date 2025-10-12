@@ -13,8 +13,8 @@ Automatically builds and publishes Docker images to Docker Hub when code is push
 - Pull requests to `main` or `develop` branches
 
 **Image Tags:**
-- `main-<commit-sha>` - For main branch commits
-- `develop-<commit-sha>` - For develop branch commits  
+- `main-<short-sha>` - For main branch commits (e.g., `main-6e3fce0`)
+- `develop-<short-sha>` - For develop branch commits (e.g., `develop-6e3fce0`)
 - `latest` - For main branch (default branch)
 - `pr-<pr-number>` - For pull requests
 
@@ -35,10 +35,10 @@ Images are automatically built and published. To use a specific version:
 docker pull mariusgeorgescu/bjj-dapp-web:latest
 
 # Specific commit
-docker pull mariusgeorgescu/bjj-dapp-web:main-abc1234
+docker pull mariusgeorgescu/bjj-dapp-web:main-6e3fce0
 
 # Develop branch
-docker pull mariusgeorgescu/bjj-dapp-web:develop-xyz5678
+docker pull mariusgeorgescu/bjj-dapp-web:develop-6e3fce0
 ```
 
 ## Configuration
