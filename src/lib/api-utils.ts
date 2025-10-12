@@ -16,6 +16,22 @@ export async function makeUpstreamRequest<T = unknown>(
   const url = `${config.BASE_URL}${endpoint}`;
   const auth = `Basic ${Buffer.from(`${config.AUTH.USERNAME}:${config.AUTH.PASSWORD}`).toString('base64')}`;
   
+  // Check if credentials are configured
+  if (!config.AUTH.USERNAME || !config.AUTH.PASSWORD) {
+    const error: APIError = {
+      message: 'API credentials not configured. Please set API_USER and API_PASS environment variables.',
+      status: 401,
+      code: 'MISSING_CREDENTIALS'
+    };
+    apiLogger.error(`API Error [${endpoint}]`, new Error(error.message), {
+      url,
+      endpoint,
+      hasUsername: !!config.AUTH.USERNAME,
+      hasPassword: !!config.AUTH.PASSWORD
+    });
+    throw new Error(error.message);
+  }
+
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -30,10 +46,28 @@ export async function makeUpstreamRequest<T = unknown>(
     });
     
     if (!response.ok) {
+      let errorMessage = `Upstream error: ${response.status} ${response.statusText}`;
+      let errorCode = 'UPSTREAM_ERROR';
+      
+      // Provide more specific error messages
+      if (response.status === 401) {
+        errorMessage = 'Authentication failed. Please check API credentials.';
+        errorCode = 'AUTH_FAILED';
+      } else if (response.status === 403) {
+        errorMessage = 'Access forbidden. Please check API permissions.';
+        errorCode = 'ACCESS_FORBIDDEN';
+      } else if (response.status === 404) {
+        errorMessage = `API endpoint not found: ${endpoint}`;
+        errorCode = 'ENDPOINT_NOT_FOUND';
+      } else if (response.status >= 500) {
+        errorMessage = 'Backend server error. Please try again later.';
+        errorCode = 'SERVER_ERROR';
+      }
+      
       const error: APIError = {
-        message: `Upstream error: ${response.status} ${response.statusText}`,
+        message: errorMessage,
         status: response.status,
-        code: 'UPSTREAM_ERROR'
+        code: errorCode
       };
       throw new Error(error.message);
     }
@@ -46,6 +80,23 @@ export async function makeUpstreamRequest<T = unknown>(
       headers: Object.fromEntries(response.headers.entries())
     };
   } catch (error) {
+    // Handle network errors specifically
+    if (error instanceof TypeError && error.message === 'fetch failed') {
+      const networkError: APIError = {
+        message: `Network error: Unable to connect to ${config.BASE_URL}. Please check your internet connection and backend server status.`,
+        status: 0,
+        code: 'NETWORK_ERROR'
+      };
+      
+      apiLogger.error(`API Error [${endpoint}]`, error, {
+        url,
+        endpoint,
+        errorType: 'NETWORK_ERROR'
+      });
+      
+      throw new Error(networkError.message);
+    }
+    
     const apiError: APIError = {
       message: error instanceof Error ? error.message : 'Upstream error',
       status: 500,
