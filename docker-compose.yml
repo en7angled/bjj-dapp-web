@@ -9,9 +9,12 @@ services:
         NEXT_PUBLIC_NETWORK_ID: ${NEXT_PUBLIC_NETWORK_ID:-1}
         API_USER: ${API_USER}
         API_PASS: ${API_PASS}
+        API_BASE_URL: ${API_BASE_URL}
     container_name: bjj-dapp-web
     environment:
-      # Expose your backend URL and chain config to the client
+      # Runtime API configuration (server-side only)
+      - API_BASE_URL=${API_BASE_URL:-${NEXT_PUBLIC_API_URL}}
+      # Legacy support for NEXT_PUBLIC_API_URL
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_PROFILE_POLICY_ID=${NEXT_PUBLIC_PROFILE_POLICY_ID}
       - NEXT_PUBLIC_NETWORK_ID=${NEXT_PUBLIC_NETWORK_ID:-1}

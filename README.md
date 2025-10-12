@@ -7,13 +7,27 @@ Next.js app for the Decentralized BJJ Belt System.
 - Docker + Docker Compose (for container deploy)
 
 ### Environment
-Create `.env.local` (local dev) or `.env` (docker-compose) at project root:
+
+**🚀 Automated Setup:**
+```bash
+./scripts/setup-env.sh
+```
+
+**📋 Manual Setup:**
+Create `.env` file at project root:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://bjjserver-995707778143.europe-west1.run.app
-NEXT_PUBLIC_PROFILE_POLICY_ID=<policy_id>
+# Runtime API Configuration (recommended)
+API_BASE_URL=https://bjjbackend.cardano.vip
+API_USER=cardano
+API_PASS=lovelace
+
+# Cardano Configuration
+NEXT_PUBLIC_PROFILE_POLICY_ID=<your_policy_id>
 NEXT_PUBLIC_NETWORK_ID=1
 ```
+
+**📖 For detailed environment setup, see:** [ENV_SETUP.md](./ENV_SETUP.md)
 
 ### Development
 ```bash

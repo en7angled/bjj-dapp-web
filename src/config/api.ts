@@ -1,8 +1,11 @@
 // API Configuration - Runtime resolution for server-side
 // This ensures environment variables are read at runtime, not build time
 export function getApiConfig() {
+  // For server-side, always read from environment variables at runtime
+  const baseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://bjjbackend.cardano.vip';
+  
   return {
-    BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bjjbackend.cardano.vip',
+    BASE_URL: baseUrl,
     TIMEOUT: 30000,
     RETRY_ATTEMPTS: 0,
     AUTH: {
